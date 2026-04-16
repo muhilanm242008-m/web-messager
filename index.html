@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Web WhatsApp Mini</title>
+  <title>Web Messenger v1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,12 +46,73 @@
       font-size: 12px;
     }
 
-    .chat-list-header {
+    .friends-header {
       padding: 8px 12px;
       font-size: 13px;
       color: #8696a0;
       border-top: 1px solid #111b21;
       border-bottom: 1px solid #111b21;
+    }
+
+    .friends-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .friend-item {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .friend-item:hover {
+      background: #18252f;
+    }
+
+    .friend-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #2a3942;
+    }
+
+    .friend-name {
+      font-size: 14px;
+    }
+
+    .friend-email {
+      font-size: 11px;
+      color: #8696a0;
+    }
+
+    .add-friend {
+      padding: 10px 14px;
+      border-top: 1px solid #111b21;
+    }
+
+    .add-friend input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      background: #2a3942;
+      color: #e9edef;
+      margin-bottom: 6px;
+    }
+
+    .add-friend button {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: none;
+      background: #00a884;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
     }
 
     .chat-area {
@@ -119,13 +180,6 @@
       opacity: 0.8;
     }
 
-    .msg .author {
-      font-size: 11px;
-      font-weight: 600;
-      margin-bottom: 2px;
-      opacity: 0.9;
-    }
-
     .input-area {
       display: flex;
       padding: 8px 10px;
@@ -183,13 +237,11 @@
 <body>
 <div id="app-root"></div>
 
-<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
 <script>
-  // Your Firebase config (from Firebase console)
   const firebaseConfig = {
     apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain: "web-messager-533ae.firebaseapp.com",
@@ -203,98 +255,157 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
-
   const root = document.getElementById('app-root');
 
   let currentUser = null;
-  const ROOM_ID = "global-room";
+  let selectedChatId = null;
+  let selectedFriend = null;
+  let unsubscribeMessages = null;
 
-  // Optional: handle redirect results (useful if later you switch to signInWithRedirect)
-  auth.getRedirectResult()
-    .then(result => {
-      if (result.user) {
-        console.log("Redirect sign-in user:", result.user.email);
-      }
-    })
-    .catch(error => {
-      if (error && error.code) {
-        console.error("Redirect sign-in error:", error.code, error.message);
-      }
-    });
-
-  auth.onAuthStateChanged(user => {
+  auth.onAuthStateChanged(async user => {
     currentUser = user;
-    console.log("Auth state changed:", user ? user.email : null);
-    renderApp();
-    if (user) subscribeMessages();
+    if (user) {
+      await ensureUserProfile(user);
+    }
+    await renderApp();
   });
 
-  let unsubscribeMessages = null;
-  let cachedMessages = [];
-
-  function subscribeMessages() {
-    if (unsubscribeMessages) unsubscribeMessages();
-
-    unsubscribeMessages = db.collection("rooms")
-      .doc(ROOM_ID)
-      .collection("messages")
-      .orderBy("createdAt", "asc")
-      .onSnapshot(snapshot => {
-        cachedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderApp();
-      }, error => {
-        console.error("Messages subscribe error:", error);
+  async function ensureUserProfile(user) {
+    const ref = db.collection("users").doc(user.uid);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        displayName: user.displayName || "",
+        email: user.email || "",
+        photoURL: user.photoURL || "",
+        qrCodeId: user.uid, // simple for now
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+    }
   }
 
   function signIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider)
-      .then(result => {
-        console.log("Signed in:", result.user && result.user.email);
-      })
-      .catch(error => {
-        console.error("Sign-in error:", error.code, error.message);
-        alert("Sign-in error: " + error.code + " - " + error.message);
+      .catch(err => {
+        console.error("Sign-in error:", err.code, err.message);
+        alert("Sign-in error: " + err.code);
       });
   }
 
   function signOut() {
     if (unsubscribeMessages) unsubscribeMessages();
-    auth.signOut()
-      .then(() => console.log("Signed out"))
-      .catch(err => console.error("Sign out error:", err));
+    auth.signOut();
+  }
+
+  function chatIdFor(u1, u2) {
+    return [u1, u2].sort().join("_");
+  }
+
+  async function createOrGetChatWith(friendUser) {
+    const myId = currentUser.uid;
+    const friendId = friendUser.id;
+    const id = chatIdFor(myId, friendId);
+    const ref = db.collection("chats").doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        members: [myId, friendId],
+        memberEmails: [currentUser.email, friendUser.email],
+        lastMessage: "",
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    selectedChatId = id;
+    selectedFriend = friendUser;
+    subscribeMessages();
+    await renderApp();
+  }
+
+  function subscribeMessages() {
+    if (!selectedChatId) return;
+    if (unsubscribeMessages) unsubscribeMessages();
+    unsubscribeMessages = db.collection("chats")
+      .doc(selectedChatId)
+      .collection("messages")
+      .orderBy("createdAt", "asc")
+      .onSnapshot(snap => {
+        window._cachedMessages = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        renderMessages();
+      });
   }
 
   async function sendMessage(text) {
-    if (!currentUser || !text.trim()) return;
-
+    if (!currentUser || !selectedChatId || !selectedFriend || !text.trim()) return;
     const msg = {
+      from: currentUser.uid,
+      to: selectedFriend.id,
       text: text.trim(),
-      uid: currentUser.uid,
-      author: currentUser.displayName || "Me",
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-
-    try {
-      await db.collection("rooms")
-        .doc(ROOM_ID)
-        .collection("messages")
-        .add(msg);
-    } catch (e) {
-      console.error("Send message error:", e);
-    }
+    const chatRef = db.collection("chats").doc(selectedChatId);
+    const msgsRef = chatRef.collection("messages");
+    await msgsRef.add(msg);
+    await chatRef.set({
+      lastMessage: msg.text,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
   }
 
-  function renderApp() {
+  async function addFriendByEmail() {
+    const input = document.getElementById("addFriendEmail");
+    if (!input) return;
+    const email = input.value.trim().toLowerCase();
+    if (!email) return;
+    if (email === (currentUser.email || "").toLowerCase()) {
+      alert("You cannot add yourself.");
+      return;
+    }
+
+    const q = await db.collection("users").where("email", "==", email).limit(1).get();
+    if (q.empty) {
+      alert("No user found with that email.");
+      return;
+    }
+    const friendDoc = q.docs[0];
+    const friendUser = { id: friendDoc.id, ...friendDoc.data() };
+    input.value = "";
+    await createOrGetChatWith(friendUser);
+  }
+
+  async function fetchFriends() {
+    if (!currentUser) return [];
+    const q = await db.collection("chats")
+      .where("members", "array-contains", currentUser.uid)
+      .orderBy("updatedAt", "desc")
+      .get();
+
+    const chats = [];
+    for (const doc of q.docs) {
+      const data = doc.data();
+      const otherId = data.members.find(m => m !== currentUser.uid);
+      if (!otherId) continue;
+      const userSnap = await db.collection("users").doc(otherId).get();
+      if (!userSnap.exists) continue;
+      chats.push({
+        chatId: doc.id,
+        userId: otherId,
+        ...userSnap.data(),
+        lastMessage: data.lastMessage || ""
+      });
+    }
+    return chats;
+  }
+
+  async function renderApp() {
     if (!currentUser) {
       root.innerHTML = `
         <div class="app">
           <div class="sidebar"></div>
           <div class="chat-area">
             <div class="centered">
-              <h2>Web WhatsApp Mini</h2>
-              <p>Sign in with Google to start chatting.</p>
+              <h2>Web Messenger</h2>
+              <p>Sign in with Google, create profile and chat.</p>
               <button onclick="signIn()">Sign in with Google</button>
             </div>
           </div>
@@ -303,19 +414,21 @@
       return;
     }
 
-    const messagesHtml = cachedMessages.map(m => {
-      const isMe = m.uid === currentUser.uid;
-      const time = m.createdAt?.toDate
-        ? m.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
-        : "";
-      return `
-        <div class="msg ${isMe ? "me" : "them"}">
-          ${!isMe ? `<div class="author">${m.author || "User"}</div>` : ""}
-          <div class="text">${(m.text || "").replace(/</g, "&lt;")}</div>
-          <div class="meta">${time}</div>
+    const friends = await fetchFriends();
+
+    const friendsHtml = friends.map(f => `
+      <div class="friend-item" onclick="selectFriend('${f.userId}', '${f.chatId}')">
+        <div class="friend-avatar">
+          ${f.photoURL ? `<img src="${f.photoURL}" style="width:32px;height:32px;border-radius:50%;">` : ""}
         </div>
-      `;
-    }).join("");
+        <div>
+          <div class="friend-name">${f.displayName || f.email}</div>
+          <div class="friend-email">${f.email}</div>
+        </div>
+      </div>
+    `).join("");
+
+    const friendName = selectedFriend ? (selectedFriend.displayName || selectedFriend.email) : "No chat selected";
 
     root.innerHTML = `
       <div class="app">
@@ -327,52 +440,83 @@
             </div>
             <button onclick="signOut()">Logout</button>
           </div>
-          <div class="chat-list-header">
-            Global room (MVP). 1-1 chats come next.
+          <div class="friends-header">Your Chats</div>
+          <div class="friends-list" id="friendsList">
+            ${friendsHtml || `<div style="padding:10px 14px;font-size:13px;color:#8696a0;">No chats yet. Add a friend.</div>`}
+          </div>
+          <div class="add-friend">
+            <input id="addFriendEmail" type="email" placeholder="Friend email to add" />
+            <button onclick="addFriendByEmail()">Add friend by email</button>
           </div>
         </div>
         <div class="chat-area">
           <div class="chat-header">
             <div>
-              <div class="room-name">Global Chat</div>
-              <div class="status">Online</div>
+              <div class="room-name">${friendName}</div>
+              <div class="status">${selectedFriend ? "1 to 1 chat" : "Select a friend"}</div>
             </div>
           </div>
           <div class="messages" id="messages">
-            ${messagesHtml || `<div class="centered">No messages yet. Say hi!</div>`}
+            ${selectedFriend ? "" : `<div class="centered">Select a chat or add a friend to start.</div>`}
           </div>
           <div class="input-area">
-            <input id="msgInput" type="text" placeholder="Type a message" />
-            <button id="sendBtn">Send</button>
+            <input id="msgInput" type="text" placeholder="Type a message" ${selectedFriend ? "" : "disabled"} />
+            <button id="sendBtn" ${selectedFriend ? "" : "disabled"}>Send</button>
           </div>
         </div>
       </div>
     `;
 
-    const input = document.getElementById("msgInput");
-    const btn = document.getElementById("sendBtn");
-    const messagesDiv = document.getElementById("messages");
-
-    if (messagesDiv) {
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    if (btn && input) {
-      btn.onclick = () => {
-        sendMessage(input.value);
-        input.value = "";
-        input.focus();
-      };
-      input.onkeydown = (e) => {
-        if (e.key === "Enter") {
-          sendMessage(input.value);
-          input.value = "";
-        }
-      };
-    }
+    setupChatInput();
+    renderMessages();
   }
 
-  renderApp();
+  function renderMessages() {
+    const messagesDiv = document.getElementById("messages");
+    if (!messagesDiv || !selectedFriend) return;
+    const msgs = window._cachedMessages || [];
+    const html = msgs.map(m => {
+      const isMe = m.from === currentUser.uid;
+      const time = m.createdAt?.toDate
+        ? m.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        : "";
+      return `
+        <div class="msg ${isMe ? "me" : "them"}">
+          <div class="text">${(m.text || "").replace(/</g, "&lt;")}</div>
+          <div class="meta">${time}</div>
+        </div>
+      `;
+    }).join("");
+    messagesDiv.innerHTML = html || `<div class="centered">No messages yet. Say hi!</div>`;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function setupChatInput() {
+    const input = document.getElementById("msgInput");
+    const btn = document.getElementById("sendBtn");
+    if (!input || !btn) return;
+
+    btn.onclick = () => {
+      sendMessage(input.value);
+      input.value = "";
+      input.focus();
+    };
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        sendMessage(input.value);
+        input.value = "";
+      }
+    };
+  }
+
+  window.selectFriend = async function(userId, chatId) {
+    const snap = await db.collection("users").doc(userId).get();
+    if (!snap.exists) return;
+    selectedFriend = { id: snap.id, ...snap.data() };
+    selectedChatId = chatId;
+    subscribeMessages();
+    await renderApp();
+  };
 </script>
 </body>
 </html>
