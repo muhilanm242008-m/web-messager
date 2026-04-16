@@ -11,12 +11,16 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #111b21;
       color: #e9edef;
-      height: 100vh;
-      overflow: hidden;
+      min-height: 100vh;          /* instead of fixed 100vh */
+      display: flex;              /* make page a flex column */
+      flex-direction: column;
     }
     .top-nav {
       background: #202c33;
@@ -25,6 +29,7 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #2a3942;
+      flex-shrink: 0;             /* never shrink away */
     }
     .back-btn {
       background: none;
@@ -85,9 +90,10 @@
     .main-chat {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 50px);
+      flex: 1;                    /* take remaining height under nav */
       background: #0b141a;
       max-width: 900px;
+      width: 100%;
       margin: 0 auto;
     }
     .messages {
@@ -109,7 +115,7 @@
       word-wrap: break-word;
       box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
       font-size: 14px;
-      white-space: normal;        /* important: no forced vertical lines */
+      white-space: normal;
       word-break: break-word;
     }
     .message.me .message-bubble {
@@ -137,6 +143,7 @@
       display: flex;
       align-items: flex-end;
       gap: 8px;
+      flex-shrink: 0;
     }
     .input {
       flex: 1;
@@ -659,7 +666,12 @@
       camEnabled = true;
     }
 
-    videoBtn.onclick = () => {
+    const videoBtnEl = document.getElementById('videoBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+
+    videoBtnEl.onclick = () => {
       startCall();
     };
 
