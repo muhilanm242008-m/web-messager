@@ -9,134 +9,141 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-      background: #111b21; 
-      color: #e9edef; 
-      height: 100vh; 
-      overflow: hidden; 
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111b21;
+      color: #e9edef;
+      height: 100vh;
+      overflow: hidden;
     }
-    .top-nav { 
-      background: #202c33; 
-      padding: 12px 20px; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      border-bottom: 1px solid #2a3942; 
+    .top-nav {
+      background: #202c33;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #2a3942;
     }
-    .back-btn { 
-      background: none; 
-      color: #8696a0; 
-      border: none; 
-      font-size: 1.8em; 
-      cursor: pointer; 
-      padding: 8px; 
-      border-radius: 50%; 
-      width: 44px; 
-      height: 44px; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
+    .back-btn {
+      background: none;
+      color: #e9edef;
+      border: none;
+      font-size: 1.4em;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .back-btn:hover { background: #2a3942; }
-    .chat-header { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .chat-title { font-size: 18px; font-weight: 500; }
-    .e2ee-status { font-size: 13px; color: #00a884; }
-    .main-chat { display: flex; flex-direction: column; height: calc(100vh - 60px); background: #0b141a; }
-    .messages { 
-      flex: 1; 
-      overflow-y: auto; 
-      padding: 20px 16px; 
-      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.03"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); 
+    .chat-header {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
     }
-    .message { 
-      margin-bottom: 24px; 
-      display: flex; 
-      max-width: 100%; 
+    .chat-title { font-size: 16px; font-weight: 500; }
+    .e2ee-status { font-size: 11px; color: #00a884; }
+    .main-chat {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 52px);
+      background: #0b141a;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+    }
+    .message {
+      margin-bottom: 16px;
+      display: flex;
+      max-width: 100%;
     }
     .message.me { justify-content: flex-end; }
     .message.friend { justify-content: flex-start; }
-    .message-bubble { 
-      max-width: 65%; 
-      padding: 8px 14px; 
-      border-radius: 7.5px 7.5px 7.5px 0; 
-      position: relative; 
-      word-wrap: break-word; 
-      box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); 
+    .message-bubble {
+      max-width: 70%;
+      padding: 6px 10px;
+      border-radius: 7.5px;
+      word-wrap: break-word;
+      box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+      font-size: 14px;
     }
-    .message.me .message-bubble { 
-      background: linear-gradient(135deg, #005c4b 0%, #008069 100%); 
-      color: white; 
-      border-bottom-right-radius: 0; 
-      margin-left: 10%; 
+    .message.me .message-bubble {
+      background: #005c4b;
+      color: white;
+      border-bottom-right-radius: 0;
     }
-    .message.friend .message-bubble { 
-      background: #202c33; 
-      color: #e9edef; 
-      border-bottom-left-radius: 0; 
-      margin-right: 10%; 
+    .message.friend .message-bubble {
+      background: #202c33;
+      color: #e9edef;
+      border-bottom-left-radius: 0;
     }
-    .message-time { 
-      font-size: 11px; 
-      color: #667781; 
-      opacity: 0.8; 
-      margin-top: 4px; 
-      font-weight: 400; 
+    .message-time {
+      font-size: 10px;
+      color: #667781;
+      margin-top: 2px;
     }
-    .message.me .message-time { text-align: right; margin-left: 10%; }
-    .message.friend .message-time { text-align: left; margin-right: 10%; }
-    .input-area { 
-      padding: 12px 16px; 
-      background: #202c33; 
-      border-top: 1px solid #2a3942; 
-      display: flex; 
-      align-items: flex-end; 
-      gap: 12px; 
+    .message.me .message-time { text-align: right; }
+    .message.friend .message-time { text-align: left; }
+
+    .input-area {
+      padding: 8px 10px;
+      background: #202c33;
+      border-top: 1px solid #2a3942;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
     }
-    .input { 
-      flex: 1; 
-      padding: 12px 18px; 
-      background: #2a3942; 
-      border: none; 
-      border-radius: 28px; 
-      color: white; 
-      font-size: 15px; 
-      resize: none; 
-      max-height: 140px; 
-      min-height: 48px; 
-      line-height: 20px; 
+    .input {
+      flex: 1;
+      padding: 9px 12px;
+      background: #2a3942;
+      border: none;
+      border-radius: 18px;
+      color: white;
+      font-size: 14px;
+      resize: none;
+      max-height: 120px;
+      min-height: 40px;
+      line-height: 18px;
     }
     .input::placeholder { color: #8696a0; }
-    .input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0,168,132,0.3); }
-    .send-btn { 
-      width: 48px; 
-      height: 48px; 
-      background: #00a884; 
-      border: none; 
-      border-radius: 50%; 
-      color: white; 
-      cursor: pointer; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      font-size: 20px; 
-      transition: all 0.2s; 
+    .input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0,168,132,0.3);
     }
-    .send-btn:hover:not(:disabled) { background: #00967d; transform: scale(1.05); }
-    .send-btn:disabled { background: #404c55; cursor: not-allowed; transform: none; }
-    .no-chat { 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-      justify-content: center; 
-      height: 100%; 
-      color: #8696a0; 
-      font-size: 18px; 
-      text-align: center; 
-      gap: 12px; 
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      background: #00a884;
+      border: none;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
     }
-    .loading { color: #00a884; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .send-btn:disabled {
+      background: #404c55;
+      cursor: not-allowed;
+    }
+    .no-chat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #8696a0;
+      font-size: 14px;
+      text-align: center;
+      gap: 6px;
+    }
+    .loading { color: #00a884; }
   </style>
 </head>
 <body>
@@ -146,61 +153,60 @@
       <div class="chat-title" id="chatTitle">Loading chat...</div>
       <div class="e2ee-status">🔒 End-to-End Encrypted</div>
     </div>
-    <div style="width: 48px;"></div>
+    <div style="width:40px;"></div>
   </div>
 
   <div class="main-chat">
     <div class="messages" id="messages">
       <div class="no-chat">
-        <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
+        <div style="font-size: 36px;">💬</div>
         <div>Messages will appear here</div>
-        <div style="font-size: 14px; opacity: 0.8;">End-to-end encrypted</div>
       </div>
     </div>
-    
     <div class="input-area">
-      <textarea id="messageInput" class="input" placeholder="Type a secure message" rows="1" disabled></textarea>
+      <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
       <button id="sendBtn" class="send-btn" disabled>➤</button>
     </div>
   </div>
 
   <script>
-    // === REPLACE WITH YOUR ACTUAL FIREBASE CONFIG ===
     const firebaseConfig = {
-   apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
-  authDomain: "web-messager-533ae.firebaseapp.com",
-  projectId: "web-messager-533ae",
-  storageBucket: "web-messager-533ae.firebasestorage.app",
-  messagingSenderId: "466370688536",
-  appId: "1:466370688536:web:90e63387db2e4b697ff56d",
-  measurementId: "G-Q3136YFH7C"
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // === AUTH & STATE CHECK ===
-    const userUID = localStorage.getItem('userUID');
-    const selectedFriendStr = localStorage.getItem('selectedFriend');
-    
-    if (!userUID || !selectedFriendStr) {
-      window.location.href = 'index.html';
-      throw new Error('Missing authentication');
+    let userUID = null;
+    let selectedFriend = null;
+    let chatKey = null;
+    let chatId = null;
+
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    const selectedFriend = JSON.parse(selectedFriendStr);
-    document.getElementById('chatTitle').textContent = selectedFriend.name || selectedFriend.email.split('@')[0];
-
-    // === E2EE CRYPTO FUNCTIONS ===
     async function getChatKey(uid1, uid2) {
       const combined = [uid1, uid2].sort().join(':');
       const encoder = new TextEncoder();
       const keyData = encoder.encode(combined);
       const hashBuffer = await window.crypto.subtle.digest('SHA-256', keyData);
-      const hash = await window.crypto.subtle.importKey('raw', hashBuffer, {name: 'AES-GCM'}, false, ['encrypt', 'decrypt']);
-      return hash;
+      const key = await window.crypto.subtle.importKey(
+        'raw', hashBuffer, {name: 'AES-GCM'}, false, ['encrypt', 'decrypt']
+      );
+      return key;
     }
 
     async function encrypt(text, key) {
@@ -208,9 +214,7 @@
       const iv = window.crypto.getRandomValues(new Uint8Array(12));
       const data = encoder.encode(text);
       const encrypted = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: iv }, 
-        key, 
-        data
+        { name: 'AES-GCM', iv }, key, data
       );
       return JSON.stringify({
         iv: Array.from(iv),
@@ -225,89 +229,62 @@
         const iv = new Uint8Array(ciphertext.iv);
         const encryptedData = new Uint8Array(ciphertext.data);
         const decrypted = await window.crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: iv }, 
-          key, 
-          encryptedData
+          { name: 'AES-GCM', iv }, key, encryptedData
         );
         return decoder.decode(decrypted);
-      } catch (error) {
+      } catch {
         return '[🔒 Unable to decrypt]';
       }
     }
 
-    // === SETUP CHAT ===
-    const chatId = [userUID, selectedFriend.id].sort().join('_');
-    let chatKey;
-
-    async function initChat() {
-      try {
-        document.getElementById('messages').innerHTML = '<div class="no-chat loading">🔄 Connecting to secure chat...</div>';
-        chatKey = await getChatKey(userUID, selectedFriend.id);
-        
-        // Enable input
-        const input = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
-        
-        // Auto-resize textarea
-        input.addEventListener('input', function() {
-          this.style.height = 'auto';
-          this.style.height = Math.min(this.scrollHeight, 140) + 'px';
-        });
-        
-        loadMessages();
-      } catch (error) {
-        console.error('Chat init error:', error);
-        document.getElementById('messages').innerHTML = '<div class="no-chat">❌ Chat connection failed</div>';
+    async function ensureChatDoc() {
+      const chatRef = db.collection('chats').doc(chatId);
+      const doc = await chatRef.get();
+      if (!doc.exists) {
+        await chatRef.set({
+          participants: [userUID, selectedFriend.id],
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } else if (!doc.data().participants) {
+        await chatRef.set({
+          participants: [userUID, selectedFriend.id]
+        }, { merge: true });
       }
     }
 
-    // === LOAD MESSAGES ===
     function loadMessages() {
-      const messagesEl = document.getElementById('messages');
-      
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
         .onSnapshot(async (snapshot) => {
           messagesEl.innerHTML = '';
-          
           if (snapshot.empty) {
             messagesEl.innerHTML = `
               <div class="no-chat">
-                <div style="font-size: 48px; margin-bottom: 16px;">🔒</div>
+                <div style="font-size:32px;">🔒</div>
                 <div>Start the conversation!</div>
-                <div style="font-size: 14px; opacity: 0.8;">Messages are end-to-end encrypted</div>
-              </div>
-            `;
+              </div>`;
             return;
           }
-          
           for (let doc of snapshot.docs) {
             const msg = doc.data();
             let displayText = msg.text;
-            
-            // Decrypt if encrypted
             if (msg.encrypted && chatKey) {
               displayText = await decrypt(msg.text, chatKey);
             }
-            
             const isMe = msg.senderId === userUID;
-            const timeStr = msg.createdAt ? 
-              new Date(msg.createdAt.toDate()).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 
-              'Pending';
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isMe ? 'me' : 'friend'}`;
-            messageDiv.innerHTML = `
-              <div class="message-bubble">${escapeHtml(displayText)}</div>
-              <div class="message-time">${timeStr}</div>
+            const timeStr = msg.createdAt
+              ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+              : 'Pending';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + (isMe ? 'me' : 'friend');
+            msgDiv.innerHTML = `
+              <div>
+                <div class="message-bubble">${escapeHtml(displayText)}</div>
+                <div class="message-time">${timeStr}</div>
+              </div>
             `;
-            messagesEl.appendChild(messageDiv);
+            messagesEl.appendChild(msgDiv);
           }
-          
-          // Scroll to bottom
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }, (error) => {
           console.error('Messages error:', error);
@@ -315,51 +292,74 @@
         });
     }
 
-    // === SEND MESSAGE ===
-    document.getElementById('sendBtn').onclick = async function() {
-      const text = document.getElementById('messageInput').value.trim();
+    async function initChat() {
+      try {
+        messagesEl.innerHTML = '<div class="no-chat loading">Connecting to secure chat...</div>';
+        chatId = [userUID, selectedFriend.id].sort().join('_');
+        chatKey = await getChatKey(userUID, selectedFriend.id);
+        await ensureChatDoc();
+
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+
+        inputEl.addEventListener('input', function() {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        loadMessages();
+      } catch (e) {
+        console.error('Chat init error:', e);
+        messagesEl.innerHTML = '<div class="no-chat">❌ Chat connection failed</div>';
+      }
+    }
+
+    sendBtn.onclick = async function() {
+      const text = inputEl.value.trim();
       if (!text || !chatKey) return;
-      
-      // Disable send during processing
       this.disabled = true;
-      
       try {
         const encryptedText = await encrypt(text, chatKey);
-        
         await db.collection('chats').doc(chatId).collection('messages').add({
           senderId: userUID,
-          senderEmail: localStorage.getItem('userEmail'),
-          senderName: localStorage.getItem('userName'),
           text: encryptedText,
           encrypted: true,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
-        document.getElementById('messageInput').value = '';
-      } catch (error) {
-        console.error('Send error:', error);
+        inputEl.value = '';
+        inputEl.style.height = '40px';
+      } catch (e) {
+        console.error('Send error:', e);
         alert('Failed to send message');
       } finally {
-        document.getElementById('sendBtn').disabled = false;
+        this.disabled = false;
       }
     };
 
-    // === ENTER TO SEND ===
-    document.getElementById('messageInput').onkeypress = function(e) {
+    inputEl.onkeypress = function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        document.getElementById('sendBtn').click();
+        sendBtn.click();
       }
     };
 
-    // === HTML ESCAPE ===
-    function escapeHtml(text) {
-      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-      return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
-    // === INIT ===
-    initChat();
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      userUID = user.uid;
+      const friendStr = localStorage.getItem('selectedFriend');
+      if (!friendStr) {
+        window.location.href = 'profile.html';
+        return;
+      }
+      selectedFriend = JSON.parse(friendStr);
+      const title = selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
+      document.getElementById('chatTitle').textContent = title;
+      initChat();
+    });
   </script>
 </body>
 </html>
