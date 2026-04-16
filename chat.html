@@ -20,7 +20,7 @@
     }
     .top-nav {
       background: #202c33;
-      padding: 8px 10px;
+      padding: 6px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -47,8 +47,21 @@
       gap: 2px;
       flex: 1;
     }
-    .chat-title { font-size: 16px; font-weight: 500; }
-    .e2ee-status { font-size: 11px; color: #00a884; }
+    .chat-title {
+      font-size: 16px;
+      font-weight: 500;
+      text-align: center;
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .e2ee-status {
+      font-size: 10px;
+      color: #00a884;
+      text-align: center;
+      max-width: 200px;
+    }
     .nav-actions {
       display: flex;
       align-items: center;
@@ -72,7 +85,7 @@
     .main-chat {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 52px);
+      height: calc(100vh - 50px);
       background: #0b141a;
       max-width: 900px;
       margin: 0 auto;
@@ -83,19 +96,20 @@
       padding: 12px 10px;
     }
     .message {
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       display: flex;
       max-width: 100%;
     }
     .message.me { justify-content: flex-end; }
     .message.friend { justify-content: flex-start; }
     .message-bubble {
-      max-width: 70%;
+      max-width: 80%;
       padding: 6px 10px;
       border-radius: 7.5px;
       word-wrap: break-word;
       box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
       font-size: 14px;
+      white-space: pre-wrap;
     }
     .message.me .message-bubble {
       background: #005c4b;
@@ -171,7 +185,6 @@
     }
     .loading { color: #00a884; }
 
-    /* Video call overlay */
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -266,7 +279,6 @@
     </div>
   </div>
 
-  <!-- Video call overlay -->
   <div class="video-overlay" id="videoOverlay">
     <div class="video-top">
       <span id="callLabel">Video call</span>
@@ -659,7 +671,7 @@
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
 
-    // ----------------------------------------------------------------
+    // -------------------------------------------------------------
 
     auth.onAuthStateChanged((user) => {
       if (!user) {
