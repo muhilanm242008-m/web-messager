@@ -10,7 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <!-- html5-qrcode usage [web:350]-->
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -387,7 +387,6 @@
       </div>
     </div>
     <div class="nav-actions">
-      <!-- badge for pending requests -->
       <div id="requestBadge" style="
         display:none;
         min-width:18px;
@@ -416,7 +415,6 @@
       <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
     </div>
 
-    <!-- notification bar for incoming request -->
     <div id="requestBar" style="
       display:none;
       margin:4px 2px 8px;
@@ -496,7 +494,7 @@
     </div>
   </div>
 
-  <!-- Friend preview after QR scan (scanner side) -->
+  <!-- Friend preview after QR scan -->
   <div class="modal-backdrop" id="qrFriendModal">
     <div class="modal">
       <div class="modal-header">
@@ -520,7 +518,7 @@
     </div>
   </div>
 
-  <!-- Incoming friend request (receiver side) -->
+  <!-- Incoming friend request -->
   <div class="modal-backdrop" id="incomingReqModal">
     <div class="modal">
       <div class="modal-header">
@@ -591,7 +589,7 @@
     async function openScanner() {
       document.getElementById('scanModal').style.display = 'flex';
       if (qrScanner) return;
-      qrScanner = new Html5Qrcode("qr-scanner");
+      qrScanner = new Html5Qrcode("qr-scanner"); // html5-qrcode basic usage [web:350]
       try {
         await qrScanner.start(
           { facingMode: "environment" },
@@ -642,6 +640,7 @@
       addStatusEl.innerHTML = msg;
     }
 
+    // Chat doc stores only participants + createdAt; user names come from users collection [web:361][web:366]
     async function addFriendRelation(friend, friendId) {
       const myUid = currentUserUID;
       const myDoc = currentUserData;
@@ -677,9 +676,6 @@
       const chatRef = db.collection('chats').doc(chatId);
       await chatRef.set({
         participants: [myUid, friendId],
-        otherName: friend.name || friend.username || friend.phone || '',
-        otherUsername: friend.username || '',
-        otherPhone: friend.phone || '',
         createdAt: now
       }, { merge: true });
     }
@@ -753,6 +749,7 @@
       });
     }
 
+    // Always read friend data from users collection so each side sees the correct other name [web:361][web:366]
     function renderChats(snapshot) {
       chatListEl.innerHTML = '';
       if (snapshot.empty) {
@@ -760,19 +757,24 @@
         return;
       }
 
-      snapshot.forEach((doc) => {
-        const chat = doc.data();
+      snapshot.forEach(async (docSnap) => {
+        const chat = docSnap.data();
         const otherId = chat.participants && chat.participants.find(p => p !== currentUserUID);
         if (!otherId) return;
+
+        const otherDoc = await db.collection('users').doc(otherId).get();
+        if (!otherDoc.exists) return;
+        const other = otherDoc.data();
 
         const row = document.createElement('div');
         row.className = 'chat-row';
 
-        const name = chat.otherName || 'Chat';
+        const name = other.name || other.username || other.phone || other.email || 'Chat';
         const avatarInitial = name[0] ? name[0].toUpperCase() : 'C';
-        const avatarHtml = chat.otherPhoto
-          ? `<img src="${chat.otherPhoto}" alt="avatar">`
+        const avatarHtml = other.photo
+          ? `<img src="${other.photo}" alt="avatar">`
           : avatarInitial;
+
         const lastText = chat.lastMessageText || 'Say hi 👋';
         const timeStr = chat.lastMessageAt
           ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
@@ -792,9 +794,9 @@
         row.onclick = () => {
           const friendData = {
             id: otherId,
-            name: chat.otherName || '',
-            username: chat.otherUsername || '',
-            phone: chat.otherPhone || ''
+            name,
+            username: other.username || '',
+            phone: other.phone || ''
           };
           startChat(friendData, otherId);
         };
