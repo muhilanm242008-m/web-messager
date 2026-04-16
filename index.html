@@ -6,62 +6,112 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: -apple-system, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; color: white; }
-    .login-container { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-    h1 { font-size: 2.5em; margin-bottom: 20px; }
-    p { font-size: 1.2em; margin-bottom: 30px; opacity: 0.9; }
-    .login-btn { background: white; color: #4285f4; border: none; padding: 15px 40px; border-radius: 50px; font-size: 1.1em; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; margin: 0 auto; transition: transform 0.2s; }
-    .login-btn:hover { transform: scale(1.05); }
-    .status { margin-top: 20px; font-size: 1em; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      color: white;
+    }
+    .login-container {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      max-width: 360px;
+      width: 100%;
+    }
+    h1 { font-size: 2.2em; margin-bottom: 16px; }
+    p { font-size: 1em; margin-bottom: 24px; opacity: 0.9; }
+    .login-btn {
+      background: white;
+      color: #4285f4;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 auto;
+      transition: transform 0.2s;
+      justify-content: center;
+      width: 100%;
+    }
+    .login-btn:hover { transform: scale(1.03); }
+    .status { margin-top: 16px; font-size: 0.9em; min-height: 1.5em; }
   </style>
 </head>
 <body>
   <div class="login-container">
     <h1>🔒 Secure Messenger</h1>
-    <p>End-to-End Encrypted Chats via Gmail</p>
+    <p>End-to-End Encrypted Chats</p>
     <button id="googleSignIn" class="login-btn">
-      <i style="font-family: Arial; font-size: 1.5em;">G</i>
+      <span style="font-family: Arial; font-size: 1.3em;">G</span>
       Continue with Google
     </button>
     <div id="status" class="status"></div>
   </div>
 
   <script>
-    // YOUR FIREBASE CONFIG HERE
+    // Firebase config
     const firebaseConfig = {
-    apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
-  authDomain: "web-messager-533ae.firebaseapp.com",
-  projectId: "web-messager-533ae",
-  storageBucket: "web-messager-533ae.firebasestorage.app",
-  messagingSenderId: "466370688536",
-  appId: "1:466370688536:web:90e63387db2e4b697ff56d",
-  measurementId: "G-Q3136YFH7C"
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
     };
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const statusEl = document.getElementById('status');
+
+    async function goToNextPage(user) {
+      try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        localStorage.setItem('userUID', user.uid);
+        localStorage.setItem('userEmail', user.email || '');
+        localStorage.setItem('userName', user.displayName || '');
+        if (doc.exists && doc.data().username && doc.data().phone) {
+          window.location.href = 'profile.html';
+        } else {
+          window.location.href = 'setup.html';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error loading profile: ' + e.message;
+      }
+    }
 
     document.getElementById('googleSignIn').addEventListener('click', async () => {
       try {
-        document.getElementById('status').textContent = 'Signing in...';
+        statusEl.textContent = 'Signing in...';
         const provider = new firebase.auth.GoogleAuthProvider();
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
-        localStorage.setItem('userToken', await user.getIdToken());
-        localStorage.setItem('userUID', user.uid);
-        localStorage.setItem('userEmail', user.email);
-        localStorage.setItem('userName', user.displayName || user.email.split('@')[0]);
-        window.location.href = 'profile.html';
+        await goToNextPage(user);
       } catch (err) {
-        document.getElementById('status').textContent = `Error: ${err.message}`;
+        statusEl.textContent = `Error: ${err.message}`;
       }
     });
 
-    // Auto-redirect if already logged in
-    auth.onAuthStateChanged(user => {
-      if (user && localStorage.getItem('userUID')) {
-        window.location.href = 'profile.html';
+    // Auto redirect if already logged in
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        goToNextPage(user);
       }
     });
   </script>
