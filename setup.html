@@ -122,7 +122,6 @@
         return;
       }
       currentUser = user;
-      // Pre-fill name if available
       document.getElementById('name').value = user.displayName || '';
       localStorage.setItem('userUID', user.uid);
       localStorage.setItem('userEmail', user.email || '');
@@ -150,7 +149,6 @@
       statusEl.textContent = 'Saving profile...';
 
       try {
-        // Ensure username is unique
         const existing = await db.collection('users')
           .where('username', '==', username).limit(1).get();
         if (!existing.empty) {
@@ -181,7 +179,7 @@
         localStorage.setItem('userPhoto', photoURL);
 
         statusEl.textContent = 'Profile saved. Redirecting...';
-        window.location.href = 'profile.html';
+        window.location.href = 'chats.html';
       } catch (e) {
         statusEl.textContent = 'Error: ' + e.message;
         saveBtn.disabled = false;
