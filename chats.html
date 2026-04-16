@@ -387,6 +387,18 @@
       </div>
     </div>
     <div class="nav-actions">
+      <!-- badge for pending requests -->
+      <div id="requestBadge" style="
+        display:none;
+        min-width:18px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:#f15c5c;
+        color:white;
+        font-size:10px;
+        font-weight:600;
+        text-align:center;
+      " title="Pending chat requests">0</div>
       <button class="icon-btn" id="scanBtn" title="Scan QR">📷</button>
       <button class="icon-btn" id="profileBtn" title="Profile">⚙️</button>
     </div>
@@ -402,6 +414,28 @@
         </div>
       </div>
       <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
+    </div>
+
+    <!-- notification bar for incoming request -->
+    <div id="requestBar" style="
+      display:none;
+      margin:4px 2px 8px;
+      padding:8px 10px;
+      border-radius:14px;
+      background:rgba(250, 238, 190, 0.08);
+      border:1px solid rgba(250, 200, 80, 0.4);
+      color:#fdd663;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    ">
+      <div id="requestBarText">New chat request.</div>
+      <div style="display:flex;gap:6px;">
+        <button id="requestRejectBtn" class="icon-btn" style="background:#2a3942;">✖</button>
+        <button id="requestAcceptBtn" class="icon-btn" style="background:#00a884;">✔</button>
+      </div>
     </div>
 
     <div class="search-card">
@@ -462,7 +496,7 @@
     </div>
   </div>
 
-  <!-- Friend preview after QR scan (for scanner) -->
+  <!-- Friend preview after QR scan (scanner side) -->
   <div class="modal-backdrop" id="qrFriendModal">
     <div class="modal">
       <div class="modal-header">
@@ -486,7 +520,7 @@
     </div>
   </div>
 
-  <!-- Incoming friend request (for QR or manual) -->
+  <!-- Incoming friend request (receiver side) -->
   <div class="modal-backdrop" id="incomingReqModal">
     <div class="modal">
       <div class="modal-header">
@@ -536,6 +570,11 @@
     let qrScannedFriend = null;
     let qrScannedFriendId = null;
     let incomingReq = null;
+    let pendingReqCount = 0;
+
+    const requestBadgeEl = document.getElementById('requestBadge');
+    const requestBarEl = document.getElementById('requestBar');
+    const requestBarTextEl = document.getElementById('requestBarText');
 
     function logout() {
       localStorage.clear();
@@ -814,7 +853,7 @@
       }
     }
 
-    function openIncomingReqModal(req) {
+    function openIncomingReqModal(req, showModal = true) {
       incomingReq = req;
       const data = req.data();
       const name = data.fromName || data.fromUsername || data.fromPhone || 'Unknown';
@@ -830,7 +869,9 @@
       const initial = name[0] ? name[0].toUpperCase() : 'U';
       avatarEl.textContent = initial;
 
-      document.getElementById('incomingReqModal').style.display = 'flex';
+      if (showModal) {
+        document.getElementById('incomingReqModal').style.display = 'flex';
+      }
     }
 
     function closeIncomingReqModal() {
@@ -877,6 +918,33 @@
       }
     }
 
+    function updateRequestUI(snapshot) {
+      pendingReqCount = snapshot.size;
+
+      if (pendingReqCount > 0) {
+        requestBadgeEl.style.display = 'inline-block';
+        requestBadgeEl.textContent = pendingReqCount > 9 ? '9+' : String(pendingReqCount);
+      } else {
+        requestBadgeEl.style.display = 'none';
+      }
+
+      if (pendingReqCount === 0) {
+        incomingReq = null;
+        requestBarEl.style.display = 'none';
+        document.getElementById('incomingReqModal').style.display = 'none';
+        return;
+      }
+
+      const req = snapshot.docs[0];
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Someone';
+      requestBarTextEl.textContent = name + ' wants to start a chat.';
+
+      requestBarEl.style.display = 'flex';
+      openIncomingReqModal(req, false);
+    }
+
     async function initChats(user) {
       currentUserUID = user.uid;
       const userDoc = await db.collection('users').doc(user.uid).get();
@@ -895,15 +963,11 @@
           chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
         });
 
-      // incoming friend requests
       db.collection('friend_requests')
         .where('toUid', '==', currentUserUID)
         .where('status', '==', 'pending')
-        .orderBy('createdAt', 'desc')
         .onSnapshot((snapshot) => {
-          if (snapshot.empty) return;
-          const req = snapshot.docs[0];
-          openIncomingReqModal(req);
+          updateRequestUI(snapshot);
         }, (error) => {
           console.error('Incoming req error:', error);
         });
@@ -956,6 +1020,15 @@
       if (btn1) btn1.onclick = acceptQrFriend;
       const btn2 = document.getElementById('acceptIncomingReqBtn');
       if (btn2) btn2.onclick = acceptIncomingReq;
+
+      const barAccept = document.getElementById('requestAcceptBtn');
+      const barReject = document.getElementById('requestRejectBtn');
+      if (barAccept) barAccept.onclick = acceptIncomingReq;
+      if (barReject) barReject.onclick = rejectIncomingReq;
+
+      requestBadgeEl.onclick = () => {
+        if (incomingReq) openIncomingReqModal(incomingReq, true);
+      };
     });
 
     auth.onAuthStateChanged((user) => {
