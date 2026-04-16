@@ -76,6 +76,7 @@
       height: 32px;
       border-radius: 50%;
       background: #2a3942;
+      overflow: hidden;
     }
 
     .friend-name {
@@ -242,6 +243,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
 <script>
+  // Replace with your real config from Firebase Console → Project settings → Your apps → Web app
   const firebaseConfig = {
     apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain: "web-messager-533ae.firebaseapp.com",
@@ -251,7 +253,6 @@
   appId: "1:466370688536:web:90e63387db2e4b697ff56d",
   measurementId: "G-Q3136YFH7C"
   };
-
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -261,8 +262,10 @@
   let selectedChatId = null;
   let selectedFriend = null;
   let unsubscribeMessages = null;
+  window._cachedMessages = [];
 
   auth.onAuthStateChanged(async user => {
+    console.log("onAuthStateChanged:", user ? user.email : null);
     currentUser = user;
     if (user) {
       await ensureUserProfile(user);
@@ -278,7 +281,7 @@
         displayName: user.displayName || "",
         email: user.email || "",
         photoURL: user.photoURL || "",
-        qrCodeId: user.uid, // simple for now
+        qrCodeId: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
@@ -286,16 +289,23 @@
 
   function signIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
+    console.log("Starting Google sign-in...");
     auth.signInWithPopup(provider)
+      .then(result => {
+        console.log("Signed in as:", result.user && result.user.email);
+        alert("Signed in as: " + (result.user && result.user.email));
+      })
       .catch(err => {
         console.error("Sign-in error:", err.code, err.message);
-        alert("Sign-in error: " + err.code);
+        alert("Sign-in error: " + err.code + " - " + err.message);
       });
   }
 
   function signOut() {
     if (unsubscribeMessages) unsubscribeMessages();
-    auth.signOut();
+    auth.signOut()
+      .then(() => console.log("Signed out"))
+      .catch(err => console.error("Sign-out error:", err));
   }
 
   function chatIdFor(u1, u2) {
@@ -332,6 +342,8 @@
       .onSnapshot(snap => {
         window._cachedMessages = snap.docs.map(d => ({id: d.id, ...d.data()}));
         renderMessages();
+      }, err => {
+        console.error("Messages subscribe error:", err);
       });
   }
 
