@@ -109,8 +109,8 @@
       word-wrap: break-word;
       box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
       font-size: 14px;
-      /* changed from pre-wrap to normal to avoid one-word-per-line */
-      white-space: normal;
+      white-space: normal;        /* important: no forced vertical lines */
+      word-break: break-word;
     }
     .message.me .message-bubble {
       background: #005c4b;
@@ -404,7 +404,10 @@
             }
             const isMe = msg.senderId === userUID;
             const timeStr = msg.createdAt
-              ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+              ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
               : 'Pending';
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message ' + (isMe ? 'me' : 'friend');
@@ -419,13 +422,15 @@
           messagesEl.scrollTop = messagesEl.scrollHeight;
         }, (error) => {
           console.error('Messages error:', error);
-          messagesEl.innerHTML = '<div class="no-chat">❌ Error loading messages</div>';
+          messagesEl.innerHTML =
+            '<div class="no-chat">❌ Error loading messages</div>';
         });
     }
 
     async function initChat() {
       try {
-        messagesEl.innerHTML = '<div class="no-chat loading">Connecting to secure chat...</div>';
+        messagesEl.innerHTML =
+          '<div class="no-chat loading">Connecting to secure chat...</div>';
         chatId = [userUID, selectedFriend.id].sort().join('_');
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
@@ -442,13 +447,13 @@
         loadMessages();
       } catch (e) {
         console.error('Chat init error:', e);
-        messagesEl.innerHTML = '<div class="no-chat">❌ Chat connection failed</div>';
+        messagesEl.innerHTML =
+          '<div class="no-chat">❌ Chat connection failed</div>';
       }
     }
 
     sendBtn.onclick = async function() {
       let text = inputEl.value;
-      // Clean line breaks so message does not become vertical lines
       text = text.replace(/\s*\n\s*/g, ' ').trim();
       if (!text || !chatKey) return;
       this.disabled = true;
@@ -603,7 +608,9 @@
     async function startCall() {
       try {
         videoOverlay.style.display = 'flex';
-        callLabel.textContent = 'Video call with ' + (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
+        callLabel.textContent =
+          'Video call with ' +
+          (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
         callStatus.textContent = 'Connecting...';
 
         await startLocalMedia();
@@ -686,7 +693,8 @@
         return;
       }
       selectedFriend = JSON.parse(friendStr);
-      const title = selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
+      const title =
+        selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
       document.getElementById('chatTitle').textContent = title;
       initChat();
     });
