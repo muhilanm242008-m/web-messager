@@ -2,237 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Web Messenger v1</title>
+  <title>Web Messenger Minimal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #111b21; color: #e9edef; }
-
-    .app {
-      display: flex;
-      height: 100vh;
-      max-height: 100vh;
-    }
-
-    .sidebar {
-      width: 30%;
-      min-width: 260px;
-      background: #202c33;
-      border-right: 1px solid #202c33;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .sidebar-header {
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #202c33;
-    }
-
-    .sidebar-header .user {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .sidebar-header button {
-      padding: 6px 10px;
-      border-radius: 4px;
-      border: none;
-      background: #00a884;
-      color: #fff;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    .friends-header {
-      padding: 8px 12px;
-      font-size: 13px;
-      color: #8696a0;
-      border-top: 1px solid #111b21;
-      border-bottom: 1px solid #111b21;
-    }
-
-    .friends-list {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    .friend-item {
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    }
-
-    .friend-item:hover {
-      background: #18252f;
-    }
-
-    .friend-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: #2a3942;
-      overflow: hidden;
-    }
-
-    .friend-name {
-      font-size: 14px;
-    }
-
-    .friend-email {
-      font-size: 11px;
-      color: #8696a0;
-    }
-
-    .add-friend {
-      padding: 10px 14px;
-      border-top: 1px solid #111b21;
-    }
-
-    .add-friend input {
-      width: 100%;
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: none;
-      outline: none;
-      font-size: 13px;
-      background: #2a3942;
-      color: #e9edef;
-      margin-bottom: 6px;
-    }
-
-    .add-friend button {
-      width: 100%;
-      padding: 7px 10px;
-      border-radius: 6px;
-      border: none;
-      background: #00a884;
-      color: #fff;
-      font-size: 13px;
-      cursor: pointer;
-    }
-
-    .chat-area {
-      flex: 1;
-      background: #0b141a;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid #202c33;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #202c33;
-      font-size: 14px;
-    }
-
-    .chat-header .room-name {
-      font-weight: 600;
-    }
-
-    .chat-header .status {
-      font-size: 12px;
-      color: #8696a0;
-    }
-
-    .messages {
-      flex: 1;
-      padding: 12px;
-      overflow-y: auto;
-      background-image: radial-gradient(#202c33 1px, transparent 0);
-      background-size: 24px 24px;
-      background-color: #0b141a;
-    }
-
-    .msg {
-      max-width: 70%;
-      margin-bottom: 8px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      font-size: 13px;
-      line-height: 1.4;
-      position: relative;
-      word-wrap: break-word;
-    }
-
-    .msg.me {
-      margin-left: auto;
-      background: #005c4b;
-    }
-
-    .msg.them {
-      margin-right: auto;
-      background: #202c33;
-    }
-
-    .msg .meta {
-      display: flex;
-      justify-content: flex-end;
-      font-size: 10px;
-      color: #d1d7db;
-      margin-top: 2px;
-      opacity: 0.8;
-    }
-
-    .input-area {
-      display: flex;
-      padding: 8px 10px;
-      gap: 8px;
-      border-top: 1px solid #202c33;
-      background: #202c33;
-    }
-
-    .input-area input {
-      flex: 1;
-      padding: 8px 10px;
-      border-radius: 20px;
-      border: none;
-      outline: none;
-      font-size: 14px;
-      background: #2a3942;
-      color: #e9edef;
-    }
-
-    .input-area button {
-      padding: 8px 16px;
-      border-radius: 20px;
-      border: none;
-      background: #00a884;
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .centered {
-      margin: auto;
-      text-align: center;
-      color: #8696a0;
-      font-size: 14px;
-    }
-
-    .centered button {
-      margin-top: 12px;
-      padding: 8px 16px;
-      border-radius: 4px;
-      border: none;
-      background: #00a884;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    @media (max-width: 768px) {
-      .sidebar { display: none; }
-      .app { display: block; }
-      .chat-area { height: 100vh; }
-    }
+    .app { display: flex; height: 100vh; max-height: 100vh; }
+    .sidebar { width: 30%; min-width: 260px; background: #202c33; border-right: 1px solid #202c33; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; background: #202c33; }
+    .sidebar-header .user { font-size: 14px; font-weight: 600; }
+    .sidebar-header button { padding: 6px 10px; border-radius: 4px; border: none; background: #00a884; color: #fff; cursor: pointer; font-size: 12px; }
+    .friends-header { padding: 8px 12px; font-size: 13px; color: #8696a0; border-top: 1px solid #111b21; border-bottom: 1px solid #111b21; }
+    .friends-list { flex: 1; overflow-y: auto; }
+    .friend-item { padding: 10px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .friend-item:hover { background: #18252f; }
+    .friend-avatar { width: 32px; height: 32px; border-radius: 50%; background: #2a3942; overflow: hidden; }
+    .friend-name { font-size: 14px; }
+    .friend-email { font-size: 11px; color: #8696a0; }
+    .add-friend { padding: 10px 14px; border-top: 1px solid #111b21; }
+    .add-friend input { width: 100%; padding: 8px 10px; border-radius: 6px; border: none; outline: none; font-size: 13px; background: #2a3942; color: #e9edef; margin-bottom: 6px; }
+    .add-friend button { width: 100%; padding: 7px 10px; border-radius: 6px; border: none; background: #00a884; color: #fff; font-size: 13px; cursor: pointer; }
+    .chat-area { flex: 1; background: #0b141a; display: flex; flex-direction: column; }
+    .chat-header { padding: 12px 16px; border-bottom: 1px solid #202c33; display: flex; justify-content: space-between; align-items: center; background: #202c33; font-size: 14px; }
+    .room-name { font-weight: 600; }
+    .status { font-size: 12px; color: #8696a0; }
+    .messages { flex: 1; padding: 12px; overflow-y: auto; background-image: radial-gradient(#202c33 1px, transparent 0); background-size: 24px 24px; background-color: #0b141a; }
+    .msg { max-width: 70%; margin-bottom: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; line-height: 1.4; position: relative; word-wrap: break-word; }
+    .msg.me { margin-left: auto; background: #005c4b; }
+    .msg.them { margin-right: auto; background: #202c33; }
+    .msg .meta { display: flex; justify-content: flex-end; font-size: 10px; color: #d1d7db; margin-top: 2px; opacity: 0.8; }
+    .input-area { display: flex; padding: 8px 10px; gap: 8px; border-top: 1px solid #202c33; background: #202c33; }
+    .input-area input { flex: 1; padding: 8px 10px; border-radius: 20px; border: none; outline: none; font-size: 14px; background: #2a3942; color: #e9edef; }
+    .input-area button { padding: 8px 16px; border-radius: 20px; border: none; background: #00a884; color: #fff; font-weight: 600; cursor: pointer; }
+    .centered { margin: auto; text-align: center; color: #8696a0; font-size: 14px; }
+    .centered button { margin-top: 12px; padding: 8px 16px; border-radius: 4px; border: none; background: #00a884; color: #fff; cursor: pointer; font-weight: 600; }
+    @media (max-width: 768px) { .sidebar { display: none; } .app { display: block; } .chat-area { height: 100vh; } }
   </style>
 </head>
 <body>
@@ -243,17 +47,13 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
 <script>
-  // 1) Get this EXACT object from Firebase Console → Project settings → General → Your apps → Web
-  //    Do NOT type it manually; copy–paste it.
   const firebaseConfig = {
-  apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+    apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain: "web-messager-533ae.firebaseapp.com",
   projectId: "web-messager-533ae",
   storageBucket: "web-messager-533ae.firebasestorage.app",
   messagingSenderId: "466370688536",
   appId: "1:466370688536:web:90e63387db2e4b697ff56d",
-  measurementId: "G-Q3136YFH7C"
-    // measurementId is optional
   };
 
   firebase.initializeApp(firebaseConfig);
@@ -510,7 +310,6 @@
     const input = document.getElementById("msgInput");
     const btn = document.getElementById("sendBtn");
     if (!input || !btn) return;
-
     btn.onclick = () => {
       sendMessage(input.value);
       input.value = "";
