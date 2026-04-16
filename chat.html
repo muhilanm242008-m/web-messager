@@ -109,7 +109,8 @@
       word-wrap: break-word;
       box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
       font-size: 14px;
-      white-space: pre-wrap;
+      /* changed from pre-wrap to normal to avoid one-word-per-line */
+      white-space: normal;
     }
     .message.me .message-bubble {
       background: #005c4b;
@@ -446,7 +447,9 @@
     }
 
     sendBtn.onclick = async function() {
-      const text = inputEl.value.trim();
+      let text = inputEl.value;
+      // Clean line breaks so message does not become vertical lines
+      text = text.replace(/\s*\n\s*/g, ' ').trim();
       if (!text || !chatKey) return;
       this.disabled = true;
       try {
@@ -670,8 +673,6 @@
       localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
-
-    // -------------------------------------------------------------
 
     auth.onAuthStateChanged((user) => {
       if (!user) {
