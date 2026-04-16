@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Messenger - Setup Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b141a;
+      color: #e9edef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .setup-card {
+      background: #202c33;
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.4);
+    }
+    h2 { margin-bottom: 4px; font-size: 22px; }
+    p { margin: 0 0 16px; color: #8696a0; font-size: 14px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 14px; color: #8696a0; }
+    input[type="text"], input[type="tel"] {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #2a3942;
+      background: #111b21;
+      color: #e9edef;
+      font-size: 14px;
+    }
+    input[type="file"] {
+      color: #8696a0;
+      font-size: 13px;
+    }
+    .btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      border: none;
+      background: #00a884;
+      color: white;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:disabled {
+      background: #404c55;
+      cursor: not-allowed;
+    }
+    .btn:hover:not(:disabled) { background: #00967d; }
+    .status { margin-top: 10px; font-size: 13px; min-height: 1.4em; color: #8696a0; }
+  </style>
+</head>
+<body>
+  <div class="setup-card">
+    <h2>Complete your profile</h2>
+    <p>Choose a username and mobile number so friends can find you.</p>
+
+    <div class="field">
+      <label for="name">Display name</label>
+      <input type="text" id="name" placeholder="Name shown to friends">
+    </div>
+
+    <div class="field">
+      <label for="username">Username (unique)</label>
+      <input type="text" id="username" placeholder="e.g. techguru" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label for="phone">Mobile number</label>
+      <input type="tel" id="phone" placeholder="e.g. 9876543210">
+    </div>
+
+    <div class="field">
+      <label for="photo">Profile photo</label>
+      <input type="file" id="photo" accept="image/*">
+    </div>
+
+    <button id="saveBtn" class="btn">Save & Continue</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    const statusEl = document.getElementById('status');
+    const saveBtn = document.getElementById('saveBtn');
+
+    let currentUser = null;
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUser = user;
+      // Pre-fill name if available
+      document.getElementById('name').value = user.displayName || '';
+      localStorage.setItem('userUID', user.uid);
+      localStorage.setItem('userEmail', user.email || '');
+    });
+
+    async function uploadProfilePhoto(file, uid) {
+      const ref = storage.ref().child(`profilePhotos/${uid}.jpg`);
+      await ref.put(file);
+      return await ref.getDownloadURL();
+    }
+
+    saveBtn.onclick = async () => {
+      if (!currentUser) return;
+      const name = document.getElementById('name').value.trim();
+      let username = document.getElementById('username').value.trim().toLowerCase();
+      const phone = document.getElementById('phone').value.trim();
+      const file = document.getElementById('photo').files[0];
+
+      if (!username || !phone) {
+        statusEl.textContent = 'Username and mobile number are required.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      statusEl.textContent = 'Saving profile...';
+
+      try {
+        // Ensure username is unique
+        const existing = await db.collection('users')
+          .where('username', '==', username).limit(1).get();
+        if (!existing.empty) {
+          statusEl.textContent = 'Username already taken. Choose another.';
+          saveBtn.disabled = false;
+          return;
+        }
+
+        let photoURL = '';
+        if (file) {
+          photoURL = await uploadProfilePhoto(currentUser.uid, currentUser.uid);
+        }
+
+        await db.collection('users').doc(currentUser.uid).set({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          name: name || username,
+          username,
+          phone,
+          photo: photoURL,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        localStorage.setItem('userName', name || username);
+        localStorage.setItem('userUsername', username);
+        localStorage.setItem('userPhone', phone);
+        localStorage.setItem('userPhoto', photoURL);
+
+        statusEl.textContent = 'Profile saved. Redirecting...';
+        window.location.href = 'profile.html';
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+        saveBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
