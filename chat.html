@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <title>Secure Messenger - Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -18,7 +20,7 @@
     }
     .top-nav {
       background: #202c33;
-      padding: 10px 12px;
+      padding: 8px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -32,17 +34,41 @@
       cursor: pointer;
       padding: 6px;
       border-radius: 50%;
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .chat-header {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
     }
     .chat-title { font-size: 16px; font-weight: 500; }
     .e2ee-status { font-size: 11px; color: #00a884; }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #2a3942;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e9edef;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .icon-btn:hover { background: #374652; }
+
     .main-chat {
       display: flex;
       flex-direction: column;
@@ -144,16 +170,87 @@
       gap: 6px;
     }
     .loading { color: #00a884; }
+
+    /* Video call overlay */
+    .video-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      z-index: 20;
+    }
+    .video-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      color: #e9edef;
+      font-size: 14px;
+    }
+    .video-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: #000;
+    }
+    video {
+      background: #000;
+    }
+    #remoteVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #localVideo {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.7);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    }
+    .video-controls {
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    .video-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #fff;
+    }
+    .video-btn.end {
+      background: #ff4b4b;
+    }
+    .video-btn.reg {
+      background: #2a3942;
+    }
   </style>
 </head>
 <body>
   <div class="top-nav">
-    <button class="back-btn" onclick="window.location.href='profile.html'">←</button>
+    <button class="back-btn" onclick="window.location.href='chats.html'">←</button>
     <div class="chat-header">
       <div class="chat-title" id="chatTitle">Loading chat...</div>
-      <div class="e2ee-status">🔒 End-to-End Encrypted</div>
+      <div class="e2ee-status">🔒 Messages & video are end-to-end encrypted</div>
     </div>
-    <div style="width:40px;"></div>
+    <div class="nav-actions">
+      <button class="icon-btn" id="videoBtn" title="Video call">📹</button>
+    </div>
   </div>
 
   <div class="main-chat">
@@ -166,6 +263,23 @@
     <div class="input-area">
       <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
       <button id="sendBtn" class="send-btn" disabled>➤</button>
+    </div>
+  </div>
+
+  <!-- Video call overlay -->
+  <div class="video-overlay" id="videoOverlay">
+    <div class="video-top">
+      <span id="callLabel">Video call</span>
+      <span id="callStatus">Connecting...</span>
+    </div>
+    <div class="video-main">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+    <div class="video-controls">
+      <button class="video-btn reg" id="toggleMicBtn">🎙️</button>
+      <button class="video-btn reg" id="toggleCamBtn">📷</button>
+      <button class="video-btn end" id="hangupBtn">✖</button>
     </div>
   </div>
 
@@ -240,15 +354,19 @@
     async function ensureChatDoc() {
       const chatRef = db.collection('chats').doc(chatId);
       const doc = await chatRef.get();
+      const baseData = {
+        participants: [userUID, selectedFriend.id],
+        otherName: selectedFriend.name || selectedFriend.username || selectedFriend.phone || '',
+        otherUsername: selectedFriend.username || '',
+        otherPhone: selectedFriend.phone || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
       if (!doc.exists) {
-        await chatRef.set({
-          participants: [userUID, selectedFriend.id],
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        await chatRef.set(baseData, { merge: true });
       } else if (!doc.data().participants) {
-        await chatRef.set({
-          participants: [userUID, selectedFriend.id]
-        }, { merge: true });
+        await chatRef.set({ participants: [userUID, selectedFriend.id] }, { merge: true });
+      } else {
+        await chatRef.set(baseData, { merge: true });
       }
     }
 
@@ -321,12 +439,20 @@
       this.disabled = true;
       try {
         const encryptedText = await encrypt(text, chatKey);
-        await db.collection('chats').doc(chatId).collection('messages').add({
+        const msgRef = db.collection('chats').doc(chatId).collection('messages');
+        await msgRef.add({
           senderId: userUID,
           text: encryptedText,
           encrypted: true,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        await db.collection('chats').doc(chatId).set({
+          lastMessageText: text,
+          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastSenderId: userUID
+        }, { merge: true });
+
         inputEl.value = '';
         inputEl.style.height = '40px';
       } catch (e) {
@@ -344,6 +470,197 @@
       }
     };
 
+    // ---------- VIDEO CALL (WebRTC + Firestore signaling) ----------
+
+    const videoBtn = document.getElementById('videoBtn');
+    const videoOverlay = document.getElementById('videoOverlay');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const callLabel = document.getElementById('callLabel');
+    const callStatus = document.getElementById('callStatus');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+
+    let pc = null;
+    let localStream = null;
+    let remoteStream = null;
+    let roomRef = null;
+    let caller = false;
+    let micEnabled = true;
+    let camEnabled = true;
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
+
+    async function startLocalMedia() {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+      remoteStream = new MediaStream();
+      remoteVideo.srcObject = remoteStream;
+    }
+
+    async function createPeerConnection() {
+      pc = new RTCPeerConnection(rtcConfig);
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.ontrack = (event) => {
+        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+      };
+
+      pc.onicecandidate = async (event) => {
+        if (!event.candidate || !roomRef) return;
+        const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
+        await candidatesCol.add(event.candidate.toJSON());
+      };
+    }
+
+    async function createRoom() {
+      caller = true;
+      roomRef = db.collection('rooms').doc(chatId);
+      await roomRef.set({ chatId, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+      await createPeerConnection();
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await roomRef.update({ offer: { type: offer.type, sdp: offer.sdp } });
+
+      roomRef.onSnapshot(async (snapshot) => {
+        const data = snapshot.data();
+        if (!pc.currentRemoteDescription && data && data.answer) {
+          const answerDesc = new RTCSessionDescription(data.answer);
+          await pc.setRemoteDescription(answerDesc);
+          callStatus.textContent = 'Connected';
+        }
+      });
+
+      roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+    }
+
+    async function joinRoom() {
+      caller = false;
+      roomRef = db.collection('rooms').doc(chatId);
+      const roomSnapshot = await roomRef.get();
+      if (!roomSnapshot.exists || !roomSnapshot.data().offer) {
+        alert('No active call. Ask your friend to call you.');
+        endCall();
+        return;
+      }
+
+      await createPeerConnection();
+
+      const offer = roomSnapshot.data().offer;
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
+
+      roomRef.collection('callerCandidates').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+
+      roomRef.onSnapshot(snapshot => {
+        const data = snapshot.data();
+        if (data && data.answer) {
+          callStatus.textContent = 'Connected';
+        }
+      });
+    }
+
+    async function startCall() {
+      try {
+        videoOverlay.style.display = 'flex';
+        callLabel.textContent = 'Video call with ' + (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
+        callStatus.textContent = 'Connecting...';
+
+        await startLocalMedia();
+
+        const roomSnapshot = await db.collection('rooms').doc(chatId).get();
+        if (roomSnapshot.exists && roomSnapshot.data().offer) {
+          await joinRoom();
+        } else {
+          await createRoom();
+        }
+      } catch (e) {
+        console.error('Video call error:', e);
+        alert('Unable to start video call.');
+        endCall();
+      }
+    }
+
+    async function endCall() {
+      videoOverlay.style.display = 'none';
+      callStatus.textContent = 'Disconnected';
+
+      if (pc) {
+        pc.getSenders().forEach(sender => sender.track && sender.track.stop());
+        pc.close();
+        pc = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(t => t.stop());
+        remoteStream = null;
+      }
+
+      if (roomRef && caller) {
+        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
+        calleeCandidates.forEach(doc => doc.ref.delete());
+        const callerCandidates = await roomRef.collection('callerCandidates').get();
+        callerCandidates.forEach(doc => doc.ref.delete());
+        await roomRef.delete();
+      }
+      roomRef = null;
+      caller = false;
+      micEnabled = true;
+      camEnabled = true;
+    }
+
+    videoBtn.onclick = () => {
+      startCall();
+    };
+
+    hangupBtn.onclick = () => {
+      endCall();
+    };
+
+    toggleMicBtn.onclick = () => {
+      if (!localStream) return;
+      micEnabled = !micEnabled;
+      localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+      toggleMicBtn.textContent = micEnabled ? '🎙️' : '🔇';
+    };
+
+    toggleCamBtn.onclick = () => {
+      if (!localStream) return;
+      camEnabled = !camEnabled;
+      localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+      toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
+    };
+
+    // ----------------------------------------------------------------
+
     auth.onAuthStateChanged((user) => {
       if (!user) {
         window.location.href = 'index.html';
@@ -352,7 +669,7 @@
       userUID = user.uid;
       const friendStr = localStorage.getItem('selectedFriend');
       if (!friendStr) {
-        window.location.href = 'profile.html';
+        window.location.href = 'chats.html';
         return;
       }
       selectedFriend = JSON.parse(friendStr);
