@@ -189,7 +189,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
 
 <script>
-  // TODO: replace with your Firebase config
+  // Your Firebase config (from Firebase console)
   const firebaseConfig = {
     apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain: "web-messager-533ae.firebaseapp.com",
@@ -207,10 +207,24 @@
   const root = document.getElementById('app-root');
 
   let currentUser = null;
-  const ROOM_ID = "global-room"; // later you can map this to 1-1 chat IDs
+  const ROOM_ID = "global-room";
+
+  // Optional: handle redirect results (useful if later you switch to signInWithRedirect)
+  auth.getRedirectResult()
+    .then(result => {
+      if (result.user) {
+        console.log("Redirect sign-in user:", result.user.email);
+      }
+    })
+    .catch(error => {
+      if (error && error.code) {
+        console.error("Redirect sign-in error:", error.code, error.message);
+      }
+    });
 
   auth.onAuthStateChanged(user => {
     currentUser = user;
+    console.log("Auth state changed:", user ? user.email : null);
     renderApp();
     if (user) subscribeMessages();
   });
@@ -228,17 +242,28 @@
       .onSnapshot(snapshot => {
         cachedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderApp();
+      }, error => {
+        console.error("Messages subscribe error:", error);
       });
   }
 
   function signIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(console.error);
+    auth.signInWithPopup(provider)
+      .then(result => {
+        console.log("Signed in:", result.user && result.user.email);
+      })
+      .catch(error => {
+        console.error("Sign-in error:", error.code, error.message);
+        alert("Sign-in error: " + error.code + " - " + error.message);
+      });
   }
 
   function signOut() {
     if (unsubscribeMessages) unsubscribeMessages();
-    auth.signOut();
+    auth.signOut()
+      .then(() => console.log("Signed out"))
+      .catch(err => console.error("Sign out error:", err));
   }
 
   async function sendMessage(text) {
@@ -251,10 +276,14 @@
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    await db.collection("rooms")
-      .doc(ROOM_ID)
-      .collection("messages")
-      .add(msg);
+    try {
+      await db.collection("rooms")
+        .doc(ROOM_ID)
+        .collection("messages")
+        .add(msg);
+    } catch (e) {
+      console.error("Send message error:", e);
+    }
   }
 
   function renderApp() {
