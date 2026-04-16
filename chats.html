@@ -13,7 +13,7 @@
 
   <!-- QR libs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <!--[page:0][web:307]-->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <!-- html5-qrcode scanner [web:312][web:348][web:350]-->
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -446,9 +446,9 @@
           <span class="icon">👤</span>
           <span>Profile</span>
         </div>
-        <div class="menu-item" id="menuManual">
-          <span class="icon">📖</span>
-          <span>manual</span>
+        <div class="menu-item" id="menuSearch">
+          <span class="icon">🔍</span>
+          <span>Search</span>
         </div>
       </div>
     </div>
@@ -521,13 +521,12 @@
   <script>
     // TODO: put your own Firebase config
     const firebaseConfig = {
-       apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
-      authDomain: "web-messager-533ae.firebaseapp.com",
-      projectId: "web-messager-533ae",
-      storageBucket: "web-messager-533ae.firebasestorage.app",
-      messagingSenderId: "466370688536",
-      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
-      measurementId: "G-Q3136YFH7C"
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_SENDER",
+      appId: "YOUR_APP_ID"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -552,7 +551,7 @@
       document.getElementById("profileName").textContent = user.displayName || "User";
       document.getElementById("profileEmail").textContent = user.email;
 
-      const qr = new QRious({
+      new QRious({
         element: document.getElementById("profileQrCanvas"),
         value: user.email,
         size: 180
@@ -580,9 +579,6 @@
       }
       const friendDoc = userSnap.docs[0];
       const friendId = friendDoc.id;
-
-      const myRef = db.collection("users").doc(currentUser.uid);
-      const friendRef = db.collection("users").doc(friendId);
 
       await db.runTransaction(async (tx) => {
         const relRef = db.collection("relationships").doc();
@@ -675,11 +671,11 @@
       const elementId = "qr-scanner";
 
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode(elementId); // [page:0][web:307]
+        html5QrCode = new Html5Qrcode(elementId); // create scanner instance [web:348][web:350][web:312]
       }
 
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } }; // [page:0]
-      const cameras = await Html5Qrcode.getCameras(); // [page:0][web:307]
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } }; // recommended config [web:350]
+      const cameras = await Html5Qrcode.getCameras(); // list cameras [web:350]
       if (!cameras || cameras.length === 0) {
         scannerStatus.textContent = "No camera found.";
         return;
@@ -694,8 +690,12 @@
           await addFriendByEmail(decodedText);
           setTimeout(closeScanner, 800);
         },
-        (err) => { /* ignore decode errors */ }
-      );
+        (err) => {
+          // ignore decode errors
+        }
+      ).catch(err => {
+        scannerStatus.textContent = "Unable to start scanning: " + err;
+      });
     }
 
     function openScanner() {
@@ -718,7 +718,7 @@
     const topMenu = document.getElementById('topMenu');
     const menuQrScan = document.getElementById('menuQrScan');
     const menuProfile = document.getElementById('menuProfile');
-    const menuManual = document.getElementById('menuManual');
+    const menuSearch = document.getElementById('menuSearch');
 
     function toggleMenu() {
       topMenu.style.display = topMenu.style.display === 'block' ? 'none' : 'block';
@@ -748,11 +748,14 @@
       openProfile();
     };
 
-    menuManual.onclick = () => {
+    // FIX: this item is "Search", focuses the search box (no manual, no error)
+    menuSearch.onclick = () => {
       closeMenu();
-      // later you can link to a manual page:
-      // window.location.href = "manual.html";
-      alert("Manual page coming soon");
+      const input = document.getElementById("searchEmail");
+      if (input) {
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+        input.focus();
+      }
     };
 
     // search button
