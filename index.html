@@ -63,7 +63,6 @@
   </div>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
       authDomain: "web-messager-533ae.firebaseapp.com",
@@ -87,7 +86,7 @@
         localStorage.setItem('userEmail', user.email || '');
         localStorage.setItem('userName', user.displayName || '');
         if (doc.exists && doc.data().username && doc.data().phone) {
-          window.location.href = 'profile.html';
+          window.location.href = 'chats.html';
         } else {
           window.location.href = 'setup.html';
         }
@@ -108,7 +107,6 @@
       }
     });
 
-    // Auto redirect if already logged in
     auth.onAuthStateChanged((user) => {
       if (user) {
         goToNextPage(user);
