@@ -5,15 +5,12 @@
   <title>Secure Messenger - Chats</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-
-  <!-- QR libs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <!-- html5-qrcode scanner [web:312][web:348][web:350]-->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +20,6 @@
       color: #e9edef;
       min-height: 100vh;
     }
-
     .top-nav {
       position: sticky;
       top: 0;
@@ -73,7 +69,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      position: relative;
     }
     .icon-btn {
       width: 32px;
@@ -95,37 +90,6 @@
       transform: translateY(-1px);
     }
 
-    /* three-dot menu */
-    .menu {
-      position: absolute;
-      top: 40px;
-      right: 0;
-      background: rgba(15, 23, 30, 0.96);
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.6);
-      padding: 6px 0;
-      min-width: 170px;
-      display: none;
-      z-index: 20;
-    }
-    .menu-item {
-      padding: 8px 14px;
-      font-size: 14px;
-      color: #e9edef;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .menu-item span.icon {
-      width: 20px;
-      text-align: center;
-    }
-    .menu-item:hover {
-      background: rgba(255,255,255,0.06);
-    }
-
     .main {
       max-width: 960px;
       margin: 0 auto;
@@ -140,9 +104,10 @@
       align-items: center;
       justify-content: space-between;
       padding: 10px 12px;
-      margin: 10px 0;
+      margin-bottom: 12px;
       border-radius: 20px;
       backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.12);
     }
@@ -197,6 +162,7 @@
       padding: 12px;
       border-radius: 18px;
       backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       background: rgba(20,30,38,0.9);
       border: 1px solid rgba(255,255,255,0.08);
     }
@@ -258,6 +224,7 @@
       border-radius: 18px;
       overflow: hidden;
       backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
       background: rgba(15, 23, 30, 0.88);
       border: 1px solid rgba(255,255,255,0.08);
       box-shadow: 0 18px 40px rgba(0,0,0,0.55);
@@ -333,7 +300,6 @@
     }
     .status strong { color: #00a884; }
 
-    /* modals */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -350,6 +316,7 @@
       overflow: hidden;
       border-radius: 24px;
       backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       background: rgba(15, 23, 30, 0.92);
       border: 1px solid rgba(255,255,255,0.18);
       box-shadow: 0 24px 60px rgba(0,0,0,0.7);
@@ -401,7 +368,6 @@
       color: #8696a0;
       text-align: center;
     }
-
     .scanner-body {
       padding: 6px;
     }
@@ -421,6 +387,7 @@
       </div>
     </div>
     <div class="nav-actions">
+      <!-- badge for pending requests -->
       <div id="requestBadge" style="
         display:none;
         min-width:18px;
@@ -432,348 +399,644 @@
         font-weight:600;
         text-align:center;
       " title="Pending chat requests">0</div>
-
-      <!-- three-dot button -->
-      <button class="icon-btn" id="menuBtn" title="Menu">⋮</button>
-
-      <!-- dropdown menu -->
-      <div class="menu" id="topMenu">
-        <div class="menu-item" id="menuQrScan">
-          <span class="icon">📷</span>
-          <span>QR scan</span>
-        </div>
-        <div class="menu-item" id="menuProfile">
-          <span class="icon">👤</span>
-          <span>Profile</span>
-        </div>
-        <div class="menu-item" id="menuSearch">
-          <span class="icon">🔍</span>
-          <span>Search</span>
-        </div>
-      </div>
+      <button class="icon-btn" id="scanBtn" title="Scan QR">📷</button>
+      <button class="icon-btn" id="profileBtn" title="Profile">⚙️</button>
     </div>
   </div>
 
   <div class="main">
-    <!-- self card -->
     <div class="me-card">
       <div class="me-info">
         <div class="me-avatar" id="meAvatar">U</div>
         <div class="me-text">
           <div class="me-name" id="meName">Loading...</div>
-          <div class="me-meta" id="meEmail">...</div>
+          <div class="me-meta" id="meMeta">@username · phone</div>
         </div>
       </div>
-      <div class="e2ee-pill">e2e encrypted</div>
+      <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
     </div>
 
-    <!-- friend search -->
-    <div class="search-card">
-      <div class="search-title">Search user & send request</div>
-      <div class="search-row">
-        <input id="searchEmail" class="search-input" type="email" placeholder="Enter email to add friend">
-        <button id="searchBtn" class="search-btn">Find</button>
+    <!-- notification bar for incoming request -->
+    <div id="requestBar" style="
+      display:none;
+      margin:4px 2px 8px;
+      padding:8px 10px;
+      border-radius:14px;
+      background:rgba(250, 238, 190, 0.08);
+      border:1px solid rgba(250, 200, 80, 0.4);
+      color:#fdd663;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    ">
+      <div id="requestBarText">New chat request.</div>
+      <div style="display:flex;gap:6px;">
+        <button id="requestRejectBtn" class="icon-btn" style="background:#2a3942;">✖</button>
+        <button id="requestAcceptBtn" class="icon-btn" style="background:#00a884;">✔</button>
       </div>
-      <div class="search-status" id="searchStatus"></div>
+    </div>
+
+    <div class="search-card">
+      <div class="search-title">Add friend by username or mobile</div>
+      <div class="search-row">
+        <input id="friendQuery" class="search-input" placeholder="friend username or phone">
+        <button id="addFriendBtn" class="search-btn">Send request</button>
+      </div>
+      <div id="addStatus" class="search-status"></div>
     </div>
 
     <div class="section-title">Chats</div>
-    <div id="chatsContainer" class="chat-list"></div>
-    <div id="chatsStatus" class="status"></div>
+    <div class="chat-list" id="chatList">
+      <div class="status"><strong>Loading chats...</strong></div>
+    </div>
   </div>
 
-  <!-- profile modal -->
-  <div id="profileModal" class="modal-backdrop">
+  <!-- My profile modal -->
+  <div class="modal-backdrop" id="profileModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">My profile</div>
+        <div class="modal-title">My Profile</div>
         <button class="modal-close" onclick="closeProfile()">×</button>
       </div>
       <div class="profile-body">
         <div class="me-avatar" id="profileAvatar">U</div>
-        <div id="profileName" class="me-name">User</div>
-        <div id="profileEmail" class="me-meta">email</div>
-
+        <div style="text-align:center;">
+          <div class="me-name" id="profileName">Name</div>
+          <div class="me-meta" id="profileMeta">@username · phone</div>
+        </div>
         <div class="profile-qr">
-          <canvas id="profileQrCanvas"></canvas>
+          <canvas id="qrCanvas" width="160" height="160"></canvas>
         </div>
         <div class="profile-meta">
-          Scan this QR to send you friend request.
+          Ask friends to scan this QR<br>
+          or search your username / mobile.
+        </div>
+        <button class="icon-btn" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="logout()">
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR scanner modal -->
+  <div class="modal-backdrop" id="scanModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Scan friend QR</div>
+        <button class="modal-close" onclick="closeScanner()">×</button>
+      </div>
+      <div class="scanner-body">
+        <div id="qr-scanner"></div>
+        <div class="profile-meta" style="margin-top:6px;">
+          Point your camera at your friend's Secure Messenger QR.
         </div>
       </div>
     </div>
   </div>
 
-  <!-- scanner modal -->
-  <div id="scannerModal" class="modal-backdrop">
+  <!-- Friend preview after QR scan (scanner side) -->
+  <div class="modal-backdrop" id="qrFriendModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">Scan QR</div>
-        <button class="modal-close" onclick="closeScanner()">×</button>
+        <div class="modal-title">Start conversation?</div>
+        <button class="modal-close" onclick="closeQrFriendModal()">×</button>
       </div>
-      <div class="scanner-body">
-        <div id="qr-scanner"></div>
-        <div id="scannerStatus" class="status" style="padding-top:8px;"></div>
+      <div class="profile-body">
+        <div class="me-avatar" id="qrFriendAvatar">F</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="qrFriendName">Friend name</div>
+          <div class="me-meta" id="qrFriendMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          This person is from QR. Send them a request to start an encrypted chat.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectQrFriend()">Cancel</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptQrFriendBtn">Send request</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Incoming friend request (receiver side) -->
+  <div class="modal-backdrop" id="incomingReqModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">New chat request</div>
+        <button class="modal-close" onclick="closeIncomingReqModal()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="incomingReqAvatar">U</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="incomingReqName">Name</div>
+          <div class="me-meta" id="incomingReqMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          wants to start an encrypted conversation with you.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectIncomingReq()">Reject</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptIncomingReqBtn">Accept</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    // TODO: put your own Firebase config
     const firebaseConfig = {
-      apiKey: "YOUR_KEY",
-      authDomain: "YOUR_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_BUCKET",
-      messagingSenderId: "YOUR_SENDER",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
     };
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let currentUser = null;
-    let html5QrCode = null;
+    let currentUserUID = null;
+    let currentUserData = null;
+    let qrScanner = null;
 
-    function avatarLetterFrom(email) {
-      if (!email) return "U";
-      return email.charAt(0).toUpperCase();
-    }
+    const chatListEl = document.getElementById('chatList');
+    const addFriendBtn = document.getElementById('addFriendBtn');
+    const addStatusEl = document.getElementById('addStatus');
 
-    function renderSelfProfile(user) {
-      const letter = avatarLetterFrom(user.email);
-      document.getElementById("meAvatar").textContent = letter;
-      document.getElementById("meName").textContent = user.displayName || "User";
-      document.getElementById("meEmail").textContent = user.email;
+    let qrScannedFriend = null;
+    let qrScannedFriendId = null;
+    let incomingReq = null;
+    let pendingReqCount = 0;
 
-      document.getElementById("profileAvatar").textContent = letter;
-      document.getElementById("profileName").textContent = user.displayName || "User";
-      document.getElementById("profileEmail").textContent = user.email;
+    const requestBadgeEl = document.getElementById('requestBadge');
+    const requestBarEl = document.getElementById('requestBar');
+    const requestBarTextEl = document.getElementById('requestBarText');
 
-      new QRious({
-        element: document.getElementById("profileQrCanvas"),
-        value: user.email,
-        size: 180
-      });
-    }
-
-    async function addFriendByEmail(email) {
-      if (!currentUser) return;
-
-      if (email === currentUser.email) {
-        alert("You cannot add yourself.");
-        return;
-      }
-      const searchStatus = document.getElementById("searchStatus");
-      searchStatus.textContent = "Searching...";
-
-      const userSnap = await db.collection("users")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-
-      if (userSnap.empty) {
-        searchStatus.textContent = "User not found.";
-        return;
-      }
-      const friendDoc = userSnap.docs[0];
-      const friendId = friendDoc.id;
-
-      await db.runTransaction(async (tx) => {
-        const relRef = db.collection("relationships").doc();
-        tx.set(relRef, {
-          users: [currentUser.uid, friendId],
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      });
-
-      searchStatus.textContent = "Friend added.";
-    }
-
-    function renderChats() {
-      if (!currentUser) return;
-
-      const chatsContainer = document.getElementById("chatsContainer");
-      const chatsStatus = document.getElementById("chatsStatus");
-      chatsContainer.innerHTML = "";
-      chatsStatus.textContent = "Loading chats...";
-
-      db.collection("relationships")
-        .where("users", "array-contains", currentUser.uid)
-        .orderBy("createdAt", "desc")
-        .onSnapshot(async (snap) => {
-          chatsContainer.innerHTML = "";
-          if (snap.empty) {
-            chatsStatus.textContent = "No chats yet. Add a friend using email or QR.";
-            return;
-          }
-          chatsStatus.textContent = "";
-
-          for (const docSnap of snap.docs) {
-            const data = docSnap.data();
-            const otherId = data.users.find(u => u !== currentUser.uid);
-            if (!otherId) continue;
-
-            const otherUser = await db.collection("users").doc(otherId).get();
-            const other = otherUser.data();
-            const row = document.createElement("div");
-            row.className = "chat-row";
-            row.onclick = () => {
-              window.location.href = "chat.html?rid=" + docSnap.id;
-            };
-
-            const avatar = document.createElement("div");
-            avatar.className = "chat-avatar";
-            avatar.textContent = avatarLetterFrom(other.email || "U");
-
-            const main = document.createElement("div");
-            main.className = "chat-main";
-
-            const top = document.createElement("div");
-            top.className = "chat-top";
-
-            const name = document.createElement("div");
-            name.className = "chat-name";
-            name.textContent = other.displayName || other.email || "User";
-
-            const time = document.createElement("div");
-            time.className = "chat-time";
-            time.textContent = "";
-
-            top.appendChild(name);
-            top.appendChild(time);
-
-            const last = document.createElement("div");
-            last.className = "chat-last";
-            last.textContent = "Tap to open chat";
-
-            main.appendChild(top);
-            main.appendChild(last);
-
-            row.appendChild(avatar);
-            row.appendChild(main);
-            chatsContainer.appendChild(row);
-          }
-        });
+    function logout() {
+      localStorage.clear();
+      auth.signOut().then(() => window.location.href = 'index.html');
     }
 
     function openProfile() {
-      document.getElementById("profileModal").style.display = "flex";
+      document.getElementById('profileModal').style.display = 'flex';
     }
     function closeProfile() {
-      document.getElementById("profileModal").style.display = "none";
+      document.getElementById('profileModal').style.display = 'none';
     }
 
-    async function startScanner() {
-      const scannerStatus = document.getElementById("scannerStatus");
-      scannerStatus.textContent = "Initializing camera...";
-      const elementId = "qr-scanner";
+    async function openScanner() {
+      document.getElementById('scanModal').style.display = 'flex';
+      if (qrScanner) return;
+      qrScanner = new Html5Qrcode("qr-scanner");
+      try {
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 220 },
+          async (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              if (!data.uid) return;
+              const friendDoc = await db.collection('users').doc(data.uid).get();
+              if (!friendDoc.exists) {
+                alert('User not found for this QR.');
+                return;
+              }
+              const friend = { id: friendDoc.id, ...friendDoc.data() };
 
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode(elementId); // create scanner instance [web:348][web:350][web:312]
+              await closeScanner();
+              openQrFriendModal(friend, friendDoc.id);
+            } catch (e) {
+              console.error(e);
+              alert('Failed to handle QR.');
+            }
+          },
+          (errorMsg) => {}
+        );
+      } catch (e) {
+        console.error(e);
+        alert('Camera permission denied or scanner error.');
       }
-
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } }; // recommended config [web:350]
-      const cameras = await Html5Qrcode.getCameras(); // list cameras [web:350]
-      if (!cameras || cameras.length === 0) {
-        scannerStatus.textContent = "No camera found.";
-        return;
-      }
-      const camId = cameras[0].id;
-
-      html5QrCode.start(
-        camId,
-        config,
-        async (decodedText) => {
-          scannerStatus.textContent = "Scanned: " + decodedText;
-          await addFriendByEmail(decodedText);
-          setTimeout(closeScanner, 800);
-        },
-        (err) => {
-          // ignore decode errors
-        }
-      ).catch(err => {
-        scannerStatus.textContent = "Unable to start scanning: " + err;
-      });
-    }
-
-    function openScanner() {
-      document.getElementById("scannerModal").style.display = "flex";
-      startScanner();
     }
 
     async function closeScanner() {
-      document.getElementById("scannerModal").style.display = "none";
-      if (html5QrCode && html5QrCode.isScanning) {
-        try {
-          await html5QrCode.stop();
-        } catch (e) {}
+      document.getElementById('scanModal').style.display = 'none';
+      if (qrScanner) {
+        try { await qrScanner.stop(); } catch {}
+        try { await qrScanner.clear(); } catch {}
+        qrScanner = null;
       }
-      document.getElementById("qr-scanner").innerHTML = "";
     }
 
-    // three-dot menu wiring
-    const menuBtn = document.getElementById('menuBtn');
-    const topMenu = document.getElementById('topMenu');
-    const menuQrScan = document.getElementById('menuQrScan');
-    const menuProfile = document.getElementById('menuProfile');
-    const menuSearch = document.getElementById('menuSearch');
-
-    function toggleMenu() {
-      topMenu.style.display = topMenu.style.display === 'block' ? 'none' : 'block';
-    }
-    function closeMenu() {
-      topMenu.style.display = 'none';
+    function setAddStatus(msg, type) {
+      const colors = {
+        success: '#00a884',
+        error: '#ff6b6b',
+        info: '#8696a0',
+        warning: '#f4b400'
+      };
+      addStatusEl.style.color = colors[type] || '#8696a0';
+      addStatusEl.innerHTML = msg;
     }
 
-    menuBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleMenu();
-    };
+    async function addFriendRelation(friend, friendId) {
+      const myUid = currentUserUID;
+      const myDoc = currentUserData;
+      const batch = db.batch();
+      const now = firebase.firestore.FieldValue.serverTimestamp();
 
-    document.addEventListener('click', (e) => {
-      if (!topMenu.contains(e.target) && e.target !== menuBtn) {
-        closeMenu();
+      const myFriendRef = db.collection('users').doc(myUid)
+        .collection('friends').doc(friendId);
+      const theirFriendRef = db.collection('users').doc(friendId)
+        .collection('friends').doc(myUid);
+
+      batch.set(myFriendRef, {
+        friendUid: friendId,
+        friendName: friend.name || friend.username || friend.phone || friend.email,
+        friendUsername: friend.username || '',
+        friendPhone: friend.phone || '',
+        friendPhoto: friend.photo || '',
+        createdAt: now
+      }, { merge: true });
+
+      batch.set(theirFriendRef, {
+        friendUid: myUid,
+        friendName: myDoc.name || myDoc.username || myDoc.phone || myDoc.email,
+        friendUsername: myDoc.username || '',
+        friendPhone: myDoc.phone || '',
+        friendPhoto: myDoc.photo || '',
+        createdAt: now
+      }, { merge: true });
+
+      await batch.commit();
+
+      const chatId = [myUid, friendId].sort().join('_');
+      const chatRef = db.collection('chats').doc(chatId);
+      await chatRef.set({
+        participants: [myUid, friendId],
+        otherName: friend.name || friend.username || friend.phone || '',
+        otherUsername: friend.username || '',
+        otherPhone: friend.phone || '',
+        createdAt: now
+      }, { merge: true });
+    }
+
+    async function sendFriendRequestTo(friend, friendId) {
+      const now = firebase.firestore.FieldValue.serverTimestamp();
+      const reqRef = db.collection('friend_requests').doc();
+      await reqRef.set({
+        fromUid: currentUserUID,
+        fromName: currentUserData.name || currentUserData.username || currentUserData.phone || currentUserData.email,
+        fromUsername: currentUserData.username || '',
+        fromPhone: currentUserData.phone || '',
+        toUid: friendId,
+        toName: friend.name || friend.username || friend.phone || friend.email,
+        toUsername: friend.username || '',
+        toPhone: friend.phone || '',
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now
+      });
+      return reqRef.id;
+    }
+
+    function startChat(friend, friendId) {
+      localStorage.setItem('selectedFriend', JSON.stringify({
+        id: friendId,
+        name: friend.name || friend.friendName || friend.username || friend.friendUsername || friend.phone,
+        username: friend.username || friend.friendUsername || '',
+        phone: friend.phone || friend.friendPhone || ''
+      }));
+      window.location.href = 'chat.html';
+    }
+
+    function renderSelfProfile() {
+      const name = currentUserData.name || currentUserData.username || currentUserData.email;
+      const username = currentUserData.username || '';
+      const phone = currentUserData.phone || '';
+      const photo = currentUserData.photo || '';
+
+      const meNameEl = document.getElementById('meName');
+      const meMetaEl = document.getElementById('meMeta');
+      const meAvatarEl = document.getElementById('meAvatar');
+      const profileNameEl = document.getElementById('profileName');
+      const profileMetaEl = document.getElementById('profileMeta');
+      const profileAvatarEl = document.getElementById('profileAvatar');
+
+      meNameEl.textContent = name;
+      meMetaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      profileNameEl.textContent = name;
+      profileMetaEl.textContent = meMetaEl.textContent;
+
+      const initial = (name && name[0]) ? name[0].toUpperCase() : 'U';
+      if (photo) {
+        meAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+        profileAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        meAvatarEl.textContent = initial;
+        profileAvatarEl.textContent = initial;
       }
-    });
 
-    menuQrScan.onclick = () => {
-      closeMenu();
-      openScanner();
-    };
+      const qrValue = JSON.stringify({
+        uid: currentUserUID,
+        username,
+        phone
+      });
+      new QRious({
+        element: document.getElementById('qrCanvas'),
+        value: qrValue,
+        size: 160,
+        level: 'H'
+      });
+    }
 
-    menuProfile.onclick = () => {
-      closeMenu();
-      openProfile();
-    };
-
-    // FIX: this item is "Search", focuses the search box (no manual, no error)
-    menuSearch.onclick = () => {
-      closeMenu();
-      const input = document.getElementById("searchEmail");
-      if (input) {
-        input.scrollIntoView({ behavior: "smooth", block: "center" });
-        input.focus();
-      }
-    };
-
-    // search button
-    document.getElementById("searchBtn").onclick = () => {
-      const v = document.getElementById("searchEmail").value.trim();
-      if (!v) return;
-      addFriendByEmail(v);
-    };
-
-    // auth state
-    auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = "index.html";
+    function renderChats(snapshot) {
+      chatListEl.innerHTML = '';
+      if (snapshot.empty) {
+        chatListEl.innerHTML = '<div class="status">No chats yet. Add friend above or scan QR.</div>';
         return;
       }
-      currentUser = user;
-      renderSelfProfile(user);
-      renderChats();
+
+      snapshot.forEach((doc) => {
+        const chat = doc.data();
+        const otherId = chat.participants && chat.participants.find(p => p !== currentUserUID);
+        if (!otherId) return;
+
+        const row = document.createElement('div');
+        row.className = 'chat-row';
+
+        const name = chat.otherName || 'Chat';
+        const avatarInitial = name[0] ? name[0].toUpperCase() : 'C';
+        const avatarHtml = chat.otherPhoto
+          ? `<img src="${chat.otherPhoto}" alt="avatar">`
+          : avatarInitial;
+        const lastText = chat.lastMessageText || 'Say hi 👋';
+        const timeStr = chat.lastMessageAt
+          ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+          : '';
+
+        row.innerHTML = `
+          <div class="chat-avatar">${avatarHtml}</div>
+          <div class="chat-main">
+            <div class="chat-top">
+              <div class="chat-name">${name}</div>
+              <div class="chat-time">${timeStr}</div>
+            </div>
+            <div class="chat-last">${lastText}</div>
+          </div>
+        `;
+
+        row.onclick = () => {
+          const friendData = {
+            id: otherId,
+            name: chat.otherName || '',
+            username: chat.otherUsername || '',
+            phone: chat.otherPhone || ''
+          };
+          startChat(friendData, otherId);
+        };
+
+        chatListEl.appendChild(row);
+      });
+    }
+
+    function openQrFriendModal(friend, friendId) {
+      qrScannedFriend = friend;
+      qrScannedFriendId = friendId;
+
+      const name = friend.name || friend.username || friend.phone || 'Unknown';
+      const username = friend.username || '';
+      const phone = friend.phone || '';
+      const photo = friend.photo || '';
+
+      const avatarEl = document.getElementById('qrFriendAvatar');
+      const nameEl = document.getElementById('qrFriendName');
+      const metaEl = document.getElementById('qrFriendMeta');
+
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'F';
+      if (photo) {
+        avatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        avatarEl.textContent = initial;
+      }
+
+      document.getElementById('qrFriendModal').style.display = 'flex';
+    }
+
+    function closeQrFriendModal() {
+      document.getElementById('qrFriendModal').style.display = 'none';
+      qrScannedFriend = null;
+      qrScannedFriendId = null;
+    }
+
+    async function rejectQrFriend() {
+      closeQrFriendModal();
+    }
+
+    async function acceptQrFriend() {
+      if (!qrScannedFriend || !qrScannedFriendId) return;
+      const btn = document.getElementById('acceptQrFriendBtn');
+      btn.disabled = true;
+      try {
+        await sendFriendRequestTo(qrScannedFriend, qrScannedFriendId);
+        closeQrFriendModal();
+        alert('Request sent. Waiting for them to accept.');
+      } catch (e) {
+        console.error('Accept QR friend error:', e);
+        alert('Failed to send request: ' + e.message);
+        btn.disabled = false;
+      }
+    }
+
+    function openIncomingReqModal(req, showModal = true) {
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Unknown';
+      const username = data.fromUsername || '';
+      const phone = data.fromPhone || '';
+
+      const avatarEl = document.getElementById('incomingReqAvatar');
+      const nameEl = document.getElementById('incomingReqName');
+      const metaEl = document.getElementById('incomingReqMeta');
+
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'U';
+      avatarEl.textContent = initial;
+
+      if (showModal) {
+        document.getElementById('incomingReqModal').style.display = 'flex';
+      }
+    }
+
+    function closeIncomingReqModal() {
+      document.getElementById('incomingReqModal').style.display = 'none';
+      incomingReq = null;
+    }
+
+    async function rejectIncomingReq() {
+      if (!incomingReq) return;
+      try {
+        await incomingReq.ref.update({
+          status: 'rejected',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Reject req error:', e);
+      }
+      closeIncomingReqModal();
+    }
+
+    async function acceptIncomingReq() {
+      if (!incomingReq) return;
+      const data = incomingReq.data();
+      const otherId = data.fromUid;
+      const friendInfo = {
+        id: otherId,
+        name: data.fromName,
+        username: data.fromUsername,
+        phone: data.fromPhone
+      };
+      try {
+        await incomingReq.ref.update({
+          status: 'accepted',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        await addFriendRelation(friendInfo, otherId);
+
+        closeIncomingReqModal();
+        startChat(friendInfo, otherId);
+      } catch (e) {
+        console.error('Accept req error:', e);
+        alert('Failed to accept request: ' + e.message);
+      }
+    }
+
+    function updateRequestUI(snapshot) {
+      pendingReqCount = snapshot.size;
+
+      if (pendingReqCount > 0) {
+        requestBadgeEl.style.display = 'inline-block';
+        requestBadgeEl.textContent = pendingReqCount > 9 ? '9+' : String(pendingReqCount);
+      } else {
+        requestBadgeEl.style.display = 'none';
+      }
+
+      if (pendingReqCount === 0) {
+        incomingReq = null;
+        requestBarEl.style.display = 'none';
+        document.getElementById('incomingReqModal').style.display = 'none';
+        return;
+      }
+
+      const req = snapshot.docs[0];
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Someone';
+      requestBarTextEl.textContent = name + ' wants to start a chat.';
+
+      requestBarEl.style.display = 'flex';
+      openIncomingReqModal(req, false);
+    }
+
+    async function initChats(user) {
+      currentUserUID = user.uid;
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (!userDoc.exists || !userDoc.data().username || !userDoc.data().phone) {
+        window.location.href = 'setup.html';
+        return;
+      }
+      currentUserData = userDoc.data();
+      renderSelfProfile();
+
+      db.collection('chats')
+        .where('participants', 'array-contains', currentUserUID)
+        .orderBy('lastMessageAt', 'desc')
+        .onSnapshot(renderChats, (error) => {
+          console.error(error);
+          chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
+        });
+
+      db.collection('friend_requests')
+        .where('toUid', '==', currentUserUID)
+        .where('status', '==', 'pending')
+        .onSnapshot((snapshot) => {
+          updateRequestUI(snapshot);
+        }, (error) => {
+          console.error('Incoming req error:', error);
+        });
+    }
+
+    addFriendBtn.onclick = async () => {
+      const query = document.getElementById('friendQuery').value.trim();
+      if (!query) {
+        setAddStatus('Enter username or mobile number.', 'warning');
+        return;
+      }
+      addFriendBtn.disabled = true;
+      setAddStatus('Searching...', 'info');
+      try {
+        let snapshot;
+        if (/^\d+$/.test(query)) {
+          snapshot = await db.collection('users')
+            .where('phone', '==', query).limit(1).get();
+        } else {
+          snapshot = await db.collection('users')
+            .where('username', '==', query.toLowerCase()).limit(1).get();
+        }
+        if (snapshot.empty) {
+          setAddStatus(`No user found for <strong>${query}</strong>.`, 'info');
+          addFriendBtn.disabled = false;
+          return;
+        }
+        const friendDoc = snapshot.docs[0];
+        if (friendDoc.id === currentUserUID) {
+          setAddStatus('You cannot add yourself.', 'warning');
+          addFriendBtn.disabled = false;
+          return;
+        }
+        const friend = { id: friendDoc.id, ...friendDoc.data() };
+        await sendFriendRequestTo(friend, friendDoc.id);
+        setAddStatus('Request sent. They need to accept.', 'success');
+      } catch (e) {
+        console.error('Add friend error:', e);
+        setAddStatus('Error: ' + e.message, 'error');
+      } finally {
+        addFriendBtn.disabled = false;
+      }
+    };
+
+    document.getElementById('profileBtn').onclick = openProfile;
+    document.getElementById('scanBtn').onclick = openScanner;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn1 = document.getElementById('acceptQrFriendBtn');
+      if (btn1) btn1.onclick = acceptQrFriend;
+      const btn2 = document.getElementById('acceptIncomingReqBtn');
+      if (btn2) btn2.onclick = acceptIncomingReq;
+
+      const barAccept = document.getElementById('requestAcceptBtn');
+      const barReject = document.getElementById('requestRejectBtn');
+      if (barAccept) barAccept.onclick = acceptIncomingReq;
+      if (barReject) barReject.onclick = rejectIncomingReq;
+
+      requestBadgeEl.onclick = () => {
+        if (incomingReq) openIncomingReqModal(incomingReq, true);
+      };
+    });
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      initChats(user);
     });
   </script>
 </body>
