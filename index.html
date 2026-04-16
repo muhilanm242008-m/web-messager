@@ -1,336 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Web Messenger Minimal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Secure Gmail Messenger (E2EE)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #111b21; color: #e9edef; }
-    .app { display: flex; height: 100vh; max-height: 100vh; }
-    .sidebar { width: 30%; min-width: 260px; background: #202c33; border-right: 1px solid #202c33; display: flex; flex-direction: column; }
-    .sidebar-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; background: #202c33; }
-    .sidebar-header .user { font-size: 14px; font-weight: 600; }
-    .sidebar-header button { padding: 6px 10px; border-radius: 4px; border: none; background: #00a884; color: #fff; cursor: pointer; font-size: 12px; }
-    .friends-header { padding: 8px 12px; font-size: 13px; color: #8696a0; border-top: 1px solid #111b21; border-bottom: 1px solid #111b21; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #111b21; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
+    .app { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 30%; background: #202c33; border-right: 1px solid #2a3942; display: flex; flex-direction: column; }
+    .main-chat { flex: 1; display: flex; flex-direction: column; background: #0b141a; }
+    .header { background: #202c33; padding: 12px 16px; border-bottom: 1px solid #2a3942; display: flex; align-items: center; justify-content: space-between; }
+    .profile { display: flex; align-items: center; cursor: pointer; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; background: #00a884; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-right: 12px; }
+    .user-info h3 { font-size: 16px; font-weight: 500; }
+    .user-info p { font-size: 14px; color: #8696a0; }
+    .header-icons { display: flex; gap: 20px; }
+    .icon { color: #8696a0; font-size: 20px; cursor: pointer; }
+    .search-box { padding: 12px 16px; background: #2a3942; }
+    .search-input { width: 100%; padding: 10px 16px; background: #202c33; border: none; border-radius: 8px; color: white; font-size: 14px; }
     .friends-list { flex: 1; overflow-y: auto; }
-    .friend-item { padding: 10px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .friend-item:hover { background: #18252f; }
-    .friend-avatar { width: 32px; height: 32px; border-radius: 50%; background: #2a3942; overflow: hidden; }
-    .friend-name { font-size: 14px; }
-    .friend-email { font-size: 11px; color: #8696a0; }
-    .add-friend { padding: 10px 14px; border-top: 1px solid #111b21; }
-    .add-friend input { width: 100%; padding: 8px 10px; border-radius: 6px; border: none; outline: none; font-size: 13px; background: #2a3942; color: #e9edef; margin-bottom: 6px; }
-    .add-friend button { width: 100%; padding: 7px 10px; border-radius: 6px; border: none; background: #00a884; color: #fff; font-size: 13px; cursor: pointer; }
-    .chat-area { flex: 1; background: #0b141a; display: flex; flex-direction: column; }
-    .chat-header { padding: 12px 16px; border-bottom: 1px solid #202c33; display: flex; justify-content: space-between; align-items: center; background: #202c33; font-size: 14px; }
-    .room-name { font-weight: 600; }
-    .status { font-size: 12px; color: #8696a0; }
-    .messages { flex: 1; padding: 12px; overflow-y: auto; background-image: radial-gradient(#202c33 1px, transparent 0); background-size: 24px 24px; background-color: #0b141a; }
-    .msg { max-width: 70%; margin-bottom: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; line-height: 1.4; position: relative; word-wrap: break-word; }
-    .msg.me { margin-left: auto; background: #005c4b; }
-    .msg.them { margin-right: auto; background: #202c33; }
-    .msg .meta { display: flex; justify-content: flex-end; font-size: 10px; color: #d1d7db; margin-top: 2px; opacity: 0.8; }
-    .input-area { display: flex; padding: 8px 10px; gap: 8px; border-top: 1px solid #202c33; background: #202c33; }
-    .input-area input { flex: 1; padding: 8px 10px; border-radius: 20px; border: none; outline: none; font-size: 14px; background: #2a3942; color: #e9edef; }
-    .input-area button { padding: 8px 16px; border-radius: 20px; border: none; background: #00a884; color: #fff; font-weight: 600; cursor: pointer; }
-    .centered { margin: auto; text-align: center; color: #8696a0; font-size: 14px; }
-    .centered button { margin-top: 12px; padding: 8px 16px; border-radius: 4px; border: none; background: #00a884; color: #fff; cursor: pointer; font-weight: 600; }
-    @media (max-width: 768px) { .sidebar { display: none; } .app { display: block; } .chat-area { height: 100vh; } }
+    .friend { padding: 12px 16px; border-bottom: 1px solid #2a3942; cursor: pointer; display: flex; align-items: center; }
+    .friend:hover { background: #2a3942; }
+    .friend-avatar { width: 50px; height: 50px; border-radius: 50%; background: #00a884; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .friend-info h4 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+    .friend-info p { font-size: 14px; color: #8696a0; }
+    .chat-header { display: flex; align-items: center; padding: 16px; background: #202c33; border-bottom: 1px solid #2a3942; }
+    .chat-title { font-size: 18px; font-weight: 500; }
+    .messages { flex: 1; overflow-y: auto; padding: 16px; }
+    .message { margin-bottom: 16px; display: flex; }
+    .message.me { justify-content: flex-end; }
+    .message-bubble { max-width: 60%; padding: 10px 14px; border-radius: 8px; position: relative; }
+    .message.me .message-bubble { background: #005c4b; color: white; }
+    .message.friend .message-bubble { background: #202c33; color: #e9edef; }
+    .message-time { font-size: 12px; color: #8696a0; margin-top: 4px; }
+    .input-area { padding: 16px; background: #202c33; border-top: 1px solid #2a3942; display: flex; align-items: flex-end; gap: 12px; }
+    .input { flex: 1; padding: 12px 16px; background: #2a3942; border: none; border-radius: 20px; color: white; font-size: 14px; resize: none; max-height: 100px; }
+    .send-btn { width: 44px; height: 44px; background: #00a884; border: none; border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+    .login-btn { background: #4285f4; color: white; border: none; padding: 14px 24px; border-radius: 4px; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .status { text-align: center; margin-top: 20px; color: #8696a0; }
+    .qr-section { padding: 20px; background: #2a3942; margin: 10px 0; text-align: center; }
+    .qr-code { width: 150px; height: 150px; background: #fff; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+    #e2ee-status { font-size: 12px; color: #00a884; margin-top: 5px; }
   </style>
 </head>
 <body>
-<div id="app-root"></div>
+  <div id="loginScreen" class="login-screen">
+    <h2>Secure Messenger</h2>
+    <p>Sign in with Gmail for E2EE chats</p>
+    <button id="googleSignIn" class="login-btn">
+      <i style="font-family: Arial;">G</i> Sign in with Google
+    </button>
+    <div id="status" class="status"></div>
+  </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  <div id="app" class="app" style="display: none;">
+    <div class="sidebar">
+      <div class="header">
+        <div class="profile" id="profile">
+          <div class="avatar" id="userAvatar">?</div>
+          <div class="user-info">
+            <div id="userName">-</div>
+            <div id="userEmail">-</div>
+          </div>
+        </div>
+        <div class="header-icons">
+          <div class="icon">🔍</div>
+          <div class="icon">👤</div>
+          <div class="icon">⋮</div>
+        </div>
+      </div>
+      <div class="search-box">
+        <input type="email" id="friendEmail" class="search-input" placeholder="Search friends by Gmail...">
+        <button id="addFriend" style="margin-top:8px;width:100%;padding:8px;background:#00a884;color:white;border:none;border-radius:4px;cursor:pointer;">Add Friend</button>
+      </div>
+      <div class="qr-section">
+        <div class="qr-code" id="qrCode">Share your QR</div>
+        <p>Scan to add friend (mock)</p>
+      </div>
+      <div class="friends-list" id="friendsList"></div>
+    </div>
+    <div class="main-chat">
+      <div class="header">
+        <div class="chat-header">
+          <div id="chatTitle">Select a friend</div>
+          <div id="e2ee-status">🔒 E2EE Enabled</div>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <textarea id="messageInput" class="input" placeholder="Type a secure message..."></textarea>
+        <button id="sendBtn" class="send-btn">➤</button>
+      </div>
+    </div>
+  </div>
 
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+  <script>
+    // REPLACE WITH YOUR FIREBASE CONFIG
+    const firebaseConfig = {
+     apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain: "web-messager-533ae.firebaseapp.com",
   projectId: "web-messager-533ae",
   storageBucket: "web-messager-533ae.firebasestorage.app",
   messagingSenderId: "466370688536",
   appId: "1:466370688536:web:90e63387db2e4b697ff56d",
-  };
+    };
 
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const root = document.getElementById('app-root');
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-  let currentUser = null;
-  let selectedChatId = null;
-  let selectedFriend = null;
-  let unsubscribeMessages = null;
-  window._cachedMessages = [];
+    let currentUser = null;
+    let selectedFriend = null;
+    let chatKey = null; // Per-chat symmetric key for E2EE
 
-  auth.onAuthStateChanged(async user => {
-    console.log("onAuthStateChanged:", user ? user.email : null);
-    currentUser = user;
-    if (user) {
-      await ensureUserProfile(user);
+    // E2EE Functions (Web Crypto API)
+    async function generateKey() {
+      return await window.crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, true, ['encrypt', 'decrypt']);
     }
-    await renderApp();
-  });
 
-  async function ensureUserProfile(user) {
-    const ref = db.collection("users").doc(user.uid);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      await ref.set({
-        displayName: user.displayName || "",
-        email: user.email || "",
-        photoURL: user.photoURL || "",
-        qrCodeId: user.uid,
+    async function encrypt(text, key) {
+      const enc = new TextEncoder();
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const encrypted = await window.crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, enc.encode(text));
+      return { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
+    }
+
+    async function decrypt(ciphertext, key) {
+      const dec = new TextDecoder();
+      const iv = new Uint8Array(ciphertext.iv);
+      const encrypted = new Uint8Array(ciphertext.data);
+      const decrypted = await window.crypto.subtle.decrypt({name: 'AES-GCM', iv}, key, encrypted);
+      return dec.decode(decrypted);
+    }
+
+    // Derive chat key (simple hash of sorted UIDs - production: use ECDH)
+    async function getChatKey(uid1, uid2) {
+      const combined = [uid1, uid2].sort().join(':');
+      const keyData = new TextEncoder().encode(combined);
+      const hash = await window.crypto.subtle.digest('SHA-256', keyData);
+      return await window.crypto.subtle.importKey('raw', hash, 'AES-GCM', true, ['encrypt', 'decrypt']);
+    }
+
+    // Auth
+    document.getElementById('googleSignIn').addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(err => {
+        document.getElementById('status').textContent = `Error: ${err.message}`;
+      });
+    });
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        await db.collection('users').doc(user.uid).set({
+          email: user.email,
+          name: user.displayName || user.email.split('@')[0],
+          photo: user.photoURL || '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        renderApp();
+      } else {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+      }
+    });
+
+    // Render functions
+    async function renderApp() {
+      document.getElementById('userAvatar').textContent = currentUser.email[0].toUpperCase();
+      document.getElementById('userName').textContent = currentUser.displayName || currentUser.email.split('@')[0];
+      document.getElementById('userEmail').textContent = currentUser.email;
+      document.getElementById('qrCode').textContent = currentUser.uid.slice(0,8); // Mock QR
+
+      const friendsSnap = await db.collection('users').where('email', '!=', currentUser.email).limit(20).get();
+      const friendsList = document.getElementById('friendsList');
+      friendsList.innerHTML = '';
+      friendsSnap.forEach(doc => {
+        const friend = { id: doc.id, ...doc.data() };
+        const div = document.createElement('div');
+        div.className = 'friend';
+        div.onclick = () => selectFriend(friend);
+        div.innerHTML = `
+          <div class="friend-avatar">${friend.email[0].toUpperCase()}</div>
+          <div class="friend-info">
+            <h4>${friend.name}</h4>
+            <p>${friend.email}</p>
+          </div>
+        `;
+        friendsList.appendChild(div);
+      });
+    }
+
+    async function selectFriend(friend) {
+      selectedFriend = friend;
+      document.getElementById('chatTitle').textContent = friend.name;
+      const chatId = [currentUser.uid, friend.id].sort().join('_');
+      chatKey = await getChatKey(currentUser.uid, friend.id);
+      subscribeMessages(chatId);
+      Array.from(document.querySelectorAll('.friend')).forEach(f => f.style.background = '');
+      event.currentTarget.style.background = '#2a3942';
+    }
+
+    function subscribeMessages(chatId) {
+      db.collection('chats').doc(chatId).collection('messages')
+        .orderBy('createdAt')
+        .onSnapshot(async snap => {
+          const messagesEl = document.getElementById('messages');
+          messagesEl.innerHTML = '';
+          for (let doc of snap.docs) {
+            const msg = doc.data();
+            let text = msg.text;
+            if (msg.encrypted) {
+              try {
+                text = await decrypt(JSON.parse(msg.text), chatKey);
+              } catch (e) {
+                text = '[E2EE: Decryption failed]';
+              }
+            }
+            const div = document.createElement('div');
+            div.className = `message ${msg.senderId === currentUser.uid ? 'me' : 'friend'}`;
+            div.innerHTML = `
+              <div class="message-bubble">${text}</div>
+              <div class="message-time">${new Date(msg.createdAt.toDate()).toLocaleTimeString()}</div>
+            `;
+            messagesEl.appendChild(div);
+          }
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        });
+    }
+
+    // Send message
+    document.getElementById('sendBtn').onclick = async () => {
+      const text = document.getElementById('messageInput').value.trim();
+      if (!text || !selectedFriend || !chatKey) return;
+      const encrypted = await encrypt(text, chatKey);
+      const chatId = [currentUser.uid, selectedFriend.id].sort().join('_');
+      await db.collection('chats').doc(chatId).collection('messages').add({
+        senderId: currentUser.uid,
+        senderName: currentUser.displayName,
+        text: JSON.stringify(encrypted),
+        encrypted: true,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-    }
-  }
-
-  function signIn() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    console.log("Starting Google sign-in...");
-    auth.signInWithPopup(provider)
-      .then(result => {
-        console.log("Signed in as:", result.user && result.user.email);
-        alert("Signed in as: " + (result.user && result.user.email));
-      })
-      .catch(err => {
-        console.error("Sign-in error:", err.code, err.message);
-        alert("Sign-in error: " + err.code + " - " + err.message);
-      });
-  }
-
-  function signOut() {
-    if (unsubscribeMessages) unsubscribeMessages();
-    auth.signOut()
-      .then(() => console.log("Signed out"))
-      .catch(err => console.error("Sign-out error:", err));
-  }
-
-  function chatIdFor(u1, u2) {
-    return [u1, u2].sort().join("_");
-  }
-
-  async function createOrGetChatWith(friendUser) {
-    const myId = currentUser.uid;
-    const friendId = friendUser.id;
-    const id = chatIdFor(myId, friendId);
-    const ref = db.collection("chats").doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      await ref.set({
-        members: [myId, friendId],
-        memberEmails: [currentUser.email, friendUser.email],
-        lastMessage: "",
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-    selectedChatId = id;
-    selectedFriend = friendUser;
-    subscribeMessages();
-    await renderApp();
-  }
-
-  function subscribeMessages() {
-    if (!selectedChatId) return;
-    if (unsubscribeMessages) unsubscribeMessages();
-    unsubscribeMessages = db.collection("chats")
-      .doc(selectedChatId)
-      .collection("messages")
-      .orderBy("createdAt", "asc")
-      .onSnapshot(snap => {
-        window._cachedMessages = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        renderMessages();
-      }, err => {
-        console.error("Messages subscribe error:", err);
-      });
-  }
-
-  async function sendMessage(text) {
-    if (!currentUser || !selectedChatId || !selectedFriend || !text.trim()) return;
-    const msg = {
-      from: currentUser.uid,
-      to: selectedFriend.id,
-      text: text.trim(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      document.getElementById('messageInput').value = '';
     };
-    const chatRef = db.collection("chats").doc(selectedChatId);
-    const msgsRef = chatRef.collection("messages");
-    await msgsRef.add(msg);
-    await chatRef.set({
-      lastMessage: msg.text,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-  }
 
-  async function addFriendByEmail() {
-    const input = document.getElementById("addFriendEmail");
-    if (!input) return;
-    const email = input.value.trim().toLowerCase();
-    if (!email) return;
-    if (email === (currentUser.email || "").toLowerCase()) {
-      alert("You cannot add yourself.");
-      return;
-    }
-
-    const q = await db.collection("users").where("email", "==", email).limit(1).get();
-    if (q.empty) {
-      alert("No user found with that email.");
-      return;
-    }
-    const friendDoc = q.docs[0];
-    const friendUser = { id: friendDoc.id, ...friendDoc.data() };
-    input.value = "";
-    await createOrGetChatWith(friendUser);
-  }
-
-  async function fetchFriends() {
-    if (!currentUser) return [];
-    const q = await db.collection("chats")
-      .where("members", "array-contains", currentUser.uid)
-      .orderBy("updatedAt", "desc")
-      .get();
-
-    const chats = [];
-    for (const doc of q.docs) {
-      const data = doc.data();
-      const otherId = data.members.find(m => m !== currentUser.uid);
-      if (!otherId) continue;
-      const userSnap = await db.collection("users").doc(otherId).get();
-      if (!userSnap.exists) continue;
-      chats.push({
-        chatId: doc.id,
-        userId: otherId,
-        ...userSnap.data(),
-        lastMessage: data.lastMessage || ""
-      });
-    }
-    return chats;
-  }
-
-  async function renderApp() {
-    if (!currentUser) {
-      root.innerHTML = `
-        <div class="app">
-          <div class="sidebar"></div>
-          <div class="chat-area">
-            <div class="centered">
-              <h2>Web Messenger</h2>
-              <p>Sign in with Google, create profile and chat.</p>
-              <button onclick="signIn()">Sign in with Google</button>
-            </div>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    const friends = await fetchFriends();
-
-    const friendsHtml = friends.map(f => `
-      <div class="friend-item" onclick="selectFriend('${f.userId}', '${f.chatId}')">
-        <div class="friend-avatar">
-          ${f.photoURL ? `<img src="${f.photoURL}" style="width:32px;height:32px;border-radius:50%;">` : ""}
-        </div>
-        <div>
-          <div class="friend-name">${f.displayName || f.email}</div>
-          <div class="friend-email">${f.email}</div>
-        </div>
-      </div>
-    `).join("");
-
-    const friendName = selectedFriend ? (selectedFriend.displayName || selectedFriend.email) : "No chat selected";
-
-    root.innerHTML = `
-      <div class="app">
-        <div class="sidebar">
-          <div class="sidebar-header">
-            <div class="user">
-              ${currentUser.photoURL ? `<img src="${currentUser.photoURL}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:6px;">` : ""}
-              <span>${currentUser.displayName || currentUser.email}</span>
-            </div>
-            <button onclick="signOut()">Logout</button>
-          </div>
-          <div class="friends-header">Your Chats</div>
-          <div class="friends-list" id="friendsList">
-            ${friendsHtml || `<div style="padding:10px 14px;font-size:13px;color:#8696a0;">No chats yet. Add a friend.</div>`}
-          </div>
-          <div class="add-friend">
-            <input id="addFriendEmail" type="email" placeholder="Friend email to add" />
-            <button onclick="addFriendByEmail()">Add friend by email</button>
-          </div>
-        </div>
-        <div class="chat-area">
-          <div class="chat-header">
-            <div>
-              <div class="room-name">${friendName}</div>
-              <div class="status">${selectedFriend ? "1 to 1 chat" : "Select a friend"}</div>
-            </div>
-          </div>
-          <div class="messages" id="messages">
-            ${selectedFriend ? "" : `<div class="centered">Select a chat or add a friend to start.</div>`}
-          </div>
-          <div class="input-area">
-            <input id="msgInput" type="text" placeholder="Type a message" ${selectedFriend ? "" : "disabled"} />
-            <button id="sendBtn" ${selectedFriend ? "" : "disabled"}>Send</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    setupChatInput();
-    renderMessages();
-  }
-
-  function renderMessages() {
-    const messagesDiv = document.getElementById("messages");
-    if (!messagesDiv || !selectedFriend) return;
-    const msgs = window._cachedMessages || [];
-    const html = msgs.map(m => {
-      const isMe = m.from === currentUser.uid;
-      const time = m.createdAt?.toDate
-        ? m.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
-        : "";
-      return `
-        <div class="msg ${isMe ? "me" : "them"}">
-          <div class="text">${(m.text || "").replace(/</g, "&lt;")}</div>
-          <div class="meta">${time}</div>
-        </div>
-      `;
-    }).join("");
-    messagesDiv.innerHTML = html || `<div class="centered">No messages yet. Say hi!</div>`;
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  }
-
-  function setupChatInput() {
-    const input = document.getElementById("msgInput");
-    const btn = document.getElementById("sendBtn");
-    if (!input || !btn) return;
-    btn.onclick = () => {
-      sendMessage(input.value);
-      input.value = "";
-      input.focus();
-    };
-    input.onkeydown = (e) => {
-      if (e.key === "Enter") {
-        sendMessage(input.value);
-        input.value = "";
+    document.getElementById('messageInput').onkeypress = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('sendBtn').click();
       }
     };
-  }
 
-  window.selectFriend = async function(userId, chatId) {
-    const snap = await db.collection("users").doc(userId).get();
-    if (!snap.exists) return;
-    selectedFriend = { id: snap.id, ...snap.data() };
-    selectedChatId = chatId;
-    subscribeMessages();
-    await renderApp();
-  };
-</script>
+    // Friend by email
+    document.getElementById('addFriend').onclick = async () => {
+      const email = document.getElementById('friendEmail').value.trim();
+      if (!email) return;
+      const snap = await db.collection('users').where('email', '==', email).get();
+      if (!snap.empty) {
+        const friend = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        selectFriend(friend);
+        alert('Friend added! Chat opened.');
+      } else {
+        alert('User not found.');
+      }
+    };
+  </script>
 </body>
 </html>
