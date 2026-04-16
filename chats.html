@@ -404,7 +404,6 @@
       <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
     </div>
 
-    <!-- Manual friend search -->
     <div class="search-card">
       <div class="search-title">Add friend by username or mobile</div>
       <div class="search-row">
@@ -420,7 +419,6 @@
     </div>
   </div>
 
-  <!-- Profile modal -->
   <div class="modal-backdrop" id="profileModal">
     <div class="modal">
       <div class="modal-header">
@@ -447,7 +445,6 @@
     </div>
   </div>
 
-  <!-- Scanner modal -->
   <div class="modal-backdrop" id="scanModal">
     <div class="modal">
       <div class="modal-header">
@@ -583,7 +580,6 @@
 
       await batch.commit();
 
-      // also ensure chat doc exists for this pair
       const chatId = [myUid, friendId].sort().join('_');
       const chatRef = db.collection('chats').doc(chatId);
       await chatRef.set({
@@ -654,7 +650,7 @@
 
       snapshot.forEach((doc) => {
         const chat = doc.data();
-        const otherId = chat.participants.find(p => p !== currentUserUID);
+        const otherId = chat.participants && chat.participants.find(p => p !== currentUserUID);
         if (!otherId) return;
 
         const row = document.createElement('div');
@@ -714,7 +710,6 @@
         });
     }
 
-    // Manual friend search handler
     addFriendBtn.onclick = async () => {
       const query = document.getElementById('friendQuery').value.trim();
       if (!query) {
