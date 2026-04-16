@@ -408,7 +408,7 @@
       <div class="search-title">Add friend by username or mobile</div>
       <div class="search-row">
         <input id="friendQuery" class="search-input" placeholder="friend username or phone">
-        <button id="addFriendBtn" class="search-btn">Add & Chat</button>
+        <button id="addFriendBtn" class="search-btn">Send request</button>
       </div>
       <div id="addStatus" class="search-status"></div>
     </div>
@@ -419,6 +419,7 @@
     </div>
   </div>
 
+  <!-- My profile modal -->
   <div class="modal-backdrop" id="profileModal">
     <div class="modal">
       <div class="modal-header">
@@ -445,6 +446,7 @@
     </div>
   </div>
 
+  <!-- QR scanner modal -->
   <div class="modal-backdrop" id="scanModal">
     <div class="modal">
       <div class="modal-header">
@@ -455,6 +457,54 @@
         <div id="qr-scanner"></div>
         <div class="profile-meta" style="margin-top:6px;">
           Point your camera at your friend's Secure Messenger QR.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Friend preview after QR scan (for scanner) -->
+  <div class="modal-backdrop" id="qrFriendModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Start conversation?</div>
+        <button class="modal-close" onclick="closeQrFriendModal()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="qrFriendAvatar">F</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="qrFriendName">Friend name</div>
+          <div class="me-meta" id="qrFriendMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          This person is from QR. Send them a request to start an encrypted chat.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectQrFriend()">Cancel</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptQrFriendBtn">Send request</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Incoming friend request (for QR or manual) -->
+  <div class="modal-backdrop" id="incomingReqModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">New chat request</div>
+        <button class="modal-close" onclick="closeIncomingReqModal()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="incomingReqAvatar">U</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="incomingReqName">Name</div>
+          <div class="me-meta" id="incomingReqMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          wants to start an encrypted conversation with you.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectIncomingReq()">Reject</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptIncomingReqBtn">Accept</button>
         </div>
       </div>
     </div>
@@ -482,6 +532,10 @@
     const chatListEl = document.getElementById('chatList');
     const addFriendBtn = document.getElementById('addFriendBtn');
     const addStatusEl = document.getElementById('addStatus');
+
+    let qrScannedFriend = null;
+    let qrScannedFriendId = null;
+    let incomingReq = null;
 
     function logout() {
       localStorage.clear();
@@ -513,9 +567,9 @@
                 return;
               }
               const friend = { id: friendDoc.id, ...friendDoc.data() };
-              await addFriendRelation(friend, friendDoc.id);
-              startChat(friend, friendDoc.id);
-              closeScanner();
+
+              await closeScanner();
+              openQrFriendModal(friend, friendDoc.id);
             } catch (e) {
               console.error(e);
               alert('Failed to handle QR.');
@@ -589,6 +643,25 @@
         otherPhone: friend.phone || '',
         createdAt: now
       }, { merge: true });
+    }
+
+    async function sendFriendRequestTo(friend, friendId) {
+      const now = firebase.firestore.FieldValue.serverTimestamp();
+      const reqRef = db.collection('friend_requests').doc();
+      await reqRef.set({
+        fromUid: currentUserUID,
+        fromName: currentUserData.name || currentUserData.username || currentUserData.phone || currentUserData.email,
+        fromUsername: currentUserData.username || '',
+        fromPhone: currentUserData.phone || '',
+        toUid: friendId,
+        toName: friend.name || friend.username || friend.phone || friend.email,
+        toUsername: friend.username || '',
+        toPhone: friend.phone || '',
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now
+      });
+      return reqRef.id;
     }
 
     function startChat(friend, friendId) {
@@ -691,6 +764,119 @@
       });
     }
 
+    function openQrFriendModal(friend, friendId) {
+      qrScannedFriend = friend;
+      qrScannedFriendId = friendId;
+
+      const name = friend.name || friend.username || friend.phone || 'Unknown';
+      const username = friend.username || '';
+      const phone = friend.phone || '';
+      const photo = friend.photo || '';
+
+      const avatarEl = document.getElementById('qrFriendAvatar');
+      const nameEl = document.getElementById('qrFriendName');
+      const metaEl = document.getElementById('qrFriendMeta');
+
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'F';
+      if (photo) {
+        avatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        avatarEl.textContent = initial;
+      }
+
+      document.getElementById('qrFriendModal').style.display = 'flex';
+    }
+
+    function closeQrFriendModal() {
+      document.getElementById('qrFriendModal').style.display = 'none';
+      qrScannedFriend = null;
+      qrScannedFriendId = null;
+    }
+
+    async function rejectQrFriend() {
+      closeQrFriendModal();
+    }
+
+    async function acceptQrFriend() {
+      if (!qrScannedFriend || !qrScannedFriendId) return;
+      const btn = document.getElementById('acceptQrFriendBtn');
+      btn.disabled = true;
+      try {
+        await sendFriendRequestTo(qrScannedFriend, qrScannedFriendId);
+        closeQrFriendModal();
+        alert('Request sent. Waiting for them to accept.');
+      } catch (e) {
+        console.error('Accept QR friend error:', e);
+        alert('Failed to send request: ' + e.message);
+        btn.disabled = false;
+      }
+    }
+
+    function openIncomingReqModal(req) {
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Unknown';
+      const username = data.fromUsername || '';
+      const phone = data.fromPhone || '';
+
+      const avatarEl = document.getElementById('incomingReqAvatar');
+      const nameEl = document.getElementById('incomingReqName');
+      const metaEl = document.getElementById('incomingReqMeta');
+
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'U';
+      avatarEl.textContent = initial;
+
+      document.getElementById('incomingReqModal').style.display = 'flex';
+    }
+
+    function closeIncomingReqModal() {
+      document.getElementById('incomingReqModal').style.display = 'none';
+      incomingReq = null;
+    }
+
+    async function rejectIncomingReq() {
+      if (!incomingReq) return;
+      try {
+        await incomingReq.ref.update({
+          status: 'rejected',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Reject req error:', e);
+      }
+      closeIncomingReqModal();
+    }
+
+    async function acceptIncomingReq() {
+      if (!incomingReq) return;
+      const data = incomingReq.data();
+      const otherId = data.fromUid;
+      const friendInfo = {
+        id: otherId,
+        name: data.fromName,
+        username: data.fromUsername,
+        phone: data.fromPhone
+      };
+      try {
+        await incomingReq.ref.update({
+          status: 'accepted',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        await addFriendRelation(friendInfo, otherId);
+
+        closeIncomingReqModal();
+        startChat(friendInfo, otherId);
+      } catch (e) {
+        console.error('Accept req error:', e);
+        alert('Failed to accept request: ' + e.message);
+      }
+    }
+
     async function initChats(user) {
       currentUserUID = user.uid;
       const userDoc = await db.collection('users').doc(user.uid).get();
@@ -708,6 +894,19 @@
           console.error(error);
           chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
         });
+
+      // incoming friend requests
+      db.collection('friend_requests')
+        .where('toUid', '==', currentUserUID)
+        .where('status', '==', 'pending')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+          if (snapshot.empty) return;
+          const req = snapshot.docs[0];
+          openIncomingReqModal(req);
+        }, (error) => {
+          console.error('Incoming req error:', error);
+        });
     }
 
     addFriendBtn.onclick = async () => {
@@ -720,7 +919,7 @@
       setAddStatus('Searching...', 'info');
       try {
         let snapshot;
-        if (/^\\d+$/.test(query)) {
+        if (/^\d+$/.test(query)) {
           snapshot = await db.collection('users')
             .where('phone', '==', query).limit(1).get();
         } else {
@@ -739,9 +938,8 @@
           return;
         }
         const friend = { id: friendDoc.id, ...friendDoc.data() };
-        await addFriendRelation(friend, friendDoc.id);
-        setAddStatus('Friend added. Opening chat...', 'success');
-        startChat(friend, friendDoc.id);
+        await sendFriendRequestTo(friend, friendDoc.id);
+        setAddStatus('Request sent. They need to accept.', 'success');
       } catch (e) {
         console.error('Add friend error:', e);
         setAddStatus('Error: ' + e.message, 'error');
@@ -752,6 +950,13 @@
 
     document.getElementById('profileBtn').onclick = openProfile;
     document.getElementById('scanBtn').onclick = openScanner;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn1 = document.getElementById('acceptQrFriendBtn');
+      if (btn1) btn1.onclick = acceptQrFriend;
+      const btn2 = document.getElementById('acceptIncomingReqBtn');
+      if (btn2) btn2.onclick = acceptIncomingReq;
+    });
 
     auth.onAuthStateChanged((user) => {
       if (!user) {
