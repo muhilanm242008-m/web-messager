@@ -159,7 +159,7 @@
 
         let photoURL = '';
         if (file) {
-          photoURL = await uploadProfilePhoto(currentUser.uid, currentUser.uid);
+          photoURL = await uploadProfilePhoto(file, currentUser.uid);
         }
 
         await db.collection('users').doc(currentUser.uid).set({
