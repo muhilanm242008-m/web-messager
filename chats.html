@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Messenger - Chats</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top, #202c33 0, #0b141a 45%, #020c12 100%);
+      color: #e9edef;
+      min-height: 100vh;
+    }
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(15, 23, 30, 0.72);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      background: conic-gradient(from 210deg, #00a884, #00d4aa, #007765, #00a884);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0b141a;
+    }
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .brand-title span:first-child {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .brand-title span:last-child {
+      font-size: 11px;
+      color: #8696a0;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #e9edef;
+      font-size: 16px;
+      backdrop-filter: blur(16px);
+      transition: background 0.15s, transform 0.15s;
+    }
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-1px);
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px 12px 24px;
+    }
+    @media (min-width: 768px) {
+      .main { padding: 20px 20px 32px; }
+    }
+
+    .me-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border-radius: 20px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .me-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .me-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      overflow: hidden;
+    }
+    .me-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .me-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .me-name {
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .me-meta {
+      font-size: 12px;
+      color: #8696a0;
+    }
+    .e2ee-pill {
+      font-size: 11px;
+      color: #00a884;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,168,132,0.6);
+      background: rgba(0,168,132,0.08);
+    }
+
+    .section-title {
+      margin: 10px 2px;
+      font-size: 13px;
+      color: #8696a0;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .chat-list {
+      border-radius: 18px;
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(15, 23, 30, 0.88);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+    }
+    .chat-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .chat-row:last-child {
+      border-bottom: none;
+    }
+    .chat-row:hover {
+      background: rgba(255,255,255,0.04);
+    }
+    .chat-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .chat-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .chat-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .chat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .chat-name {
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-time {
+      font-size: 11px;
+      color: #8696a0;
+      white-space: nowrap;
+    }
+    .chat-last {
+      font-size: 13px;
+      color: #8696a0;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: #8696a0;
+      padding: 12px;
+    }
+    .status strong { color: #00a884; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow: hidden;
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(15, 23, 30, 0.92);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .modal-close {
+      border: none;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e9edef;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .profile-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+    }
+    .profile-qr {
+      margin-top: 6px;
+      padding: 10px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .profile-meta {
+      font-size: 13px;
+      color: #8696a0;
+      text-align: center;
+    }
+    .scanner-body {
+      padding: 6px;
+    }
+    #qr-scanner {
+      width: 100%;
+      max-height: 320px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-nav">
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-title">
+        <span>Secure Messenger</span>
+        <span>End-to-end encrypted</span>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="icon-btn" id="scanBtn" title="Scan QR">📷</button>
+      <button class="icon-btn" id="profileBtn" title="Profile">⚙️</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="me-card">
+      <div class="me-info">
+        <div class="me-avatar" id="meAvatar">U</div>
+        <div class="me-text">
+          <div class="me-name" id="meName">Loading...</div>
+          <div class="me-meta" id="meMeta">@username · phone</div>
+        </div>
+      </div>
+      <div class="e2ee-pill">🔒 E2E messages • Video calls possible</div>
+    </div>
+
+    <div class="section-title">Chats</div>
+    <div class="chat-list" id="chatList">
+      <div class="status"><strong>Loading chats...</strong></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="profileModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">My Profile</div>
+        <button class="modal-close" onclick="closeProfile()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="profileAvatar">U</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="profileName">Name</div>
+          <div class="me-meta" id="profileMeta">@username · phone</div>
+        </div>
+        <div class="profile-qr">
+          <canvas id="qrCanvas" width="160" height="160"></canvas>
+        </div>
+        <div class="profile-meta">
+          Ask friends to scan this QR<br>
+          or search your username / mobile.
+        </div>
+        <button class="icon-btn" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="logout()">
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="scanModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Scan friend QR</div>
+        <button class="modal-close" onclick="closeScanner()">×</button>
+      </div>
+      <div class="scanner-body">
+        <div id="qr-scanner"></div>
+        <div class="profile-meta" style="margin-top:6px;">
+          Point your camera at your friend's Secure Messenger QR.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUserUID = null;
+    let currentUserData = null;
+    let qrScanner = null;
+
+    const chatListEl = document.getElementById('chatList');
+
+    function logout() {
+      localStorage.clear();
+      auth.signOut().then(() => window.location.href = 'index.html');
+    }
+
+    function openProfile() {
+      document.getElementById('profileModal').style.display = 'flex';
+    }
+    function closeProfile() {
+      document.getElementById('profileModal').style.display = 'none';
+    }
+
+    async function openScanner() {
+      document.getElementById('scanModal').style.display = 'flex';
+      if (qrScanner) return;
+      qrScanner = new Html5Qrcode("qr-scanner");
+      try {
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 220 },
+          async (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              if (!data.uid) return;
+              const friendDoc = await db.collection('users').doc(data.uid).get();
+              if (!friendDoc.exists) {
+                alert('User not found for this QR.');
+                return;
+              }
+              const friend = { id: friendDoc.id, ...friendDoc.data() };
+              await addFriendRelation(friend, friendDoc.id);
+              startChat(friend, friendDoc.id);
+              closeScanner();
+            } catch (e) {
+              console.error(e);
+              alert('Failed to handle QR.');
+            }
+          },
+          (errorMsg) => {}
+        );
+      } catch (e) {
+        console.error(e);
+        alert('Camera permission denied or scanner error.');
+      }
+    }
+
+    async function closeScanner() {
+      document.getElementById('scanModal').style.display = 'none';
+      if (qrScanner) {
+        try { await qrScanner.stop(); } catch {}
+        try { await qrScanner.clear(); } catch {}
+        qrScanner = null;
+      }
+    }
+
+    async function addFriendRelation(friend, friendId) {
+      const myUid = currentUserUID;
+      const myDoc = currentUserData;
+      const batch = db.batch();
+      const now = firebase.firestore.FieldValue.serverTimestamp();
+
+      const myFriendRef = db.collection('users').doc(myUid)
+        .collection('friends').doc(friendId);
+      const theirFriendRef = db.collection('users').doc(friendId)
+        .collection('friends').doc(myUid);
+
+      batch.set(myFriendRef, {
+        friendUid: friendId,
+        friendName: friend.name || friend.username || friend.phone || friend.email,
+        friendUsername: friend.username || '',
+        friendPhone: friend.phone || '',
+        friendPhoto: friend.photo || '',
+        createdAt: now
+      }, { merge: true });
+
+      batch.set(theirFriendRef, {
+        friendUid: myUid,
+        friendName: myDoc.name || myDoc.username || myDoc.phone || myDoc.email,
+        friendUsername: myDoc.username || '',
+        friendPhone: myDoc.phone || '',
+        friendPhoto: myDoc.photo || '',
+        createdAt: now
+      }, { merge: true });
+
+      await batch.commit();
+    }
+
+    function startChat(friend, friendId) {
+      localStorage.setItem('selectedFriend', JSON.stringify({
+        id: friendId,
+        name: friend.name || friend.friendName || friend.username || friend.friendUsername || friend.phone,
+        username: friend.username || friend.friendUsername || '',
+        phone: friend.phone || friend.friendPhone || ''
+      }));
+      window.location.href = 'chat.html';
+    }
+
+    function renderSelfProfile() {
+      const name = currentUserData.name || currentUserData.username || currentUserData.email;
+      const username = currentUserData.username || '';
+      const phone = currentUserData.phone || '';
+      const photo = currentUserData.photo || '';
+
+      const meNameEl = document.getElementById('meName');
+      const meMetaEl = document.getElementById('meMeta');
+      const meAvatarEl = document.getElementById('meAvatar');
+      const profileNameEl = document.getElementById('profileName');
+      const profileMetaEl = document.getElementById('profileMeta');
+      const profileAvatarEl = document.getElementById('profileAvatar');
+
+      meNameEl.textContent = name;
+      meMetaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      profileNameEl.textContent = name;
+      profileMetaEl.textContent = meMetaEl.textContent;
+
+      const initial = (name && name[0]) ? name[0].toUpperCase() : 'U';
+      if (photo) {
+        meAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+        profileAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        meAvatarEl.textContent = initial;
+        profileAvatarEl.textContent = initial;
+      }
+
+      const qrValue = JSON.stringify({
+        uid: currentUserUID,
+        username,
+        phone
+      });
+      new QRious({
+        element: document.getElementById('qrCanvas'),
+        value: qrValue,
+        size: 160,
+        level: 'H'
+      });
+    }
+
+    function renderChats(snapshot) {
+      chatListEl.innerHTML = '';
+      if (snapshot.empty) {
+        chatListEl.innerHTML = '<div class="status">No chats yet. Scan QR or add friend.</div>';
+        return;
+      }
+
+      snapshot.forEach((doc) => {
+        const chat = doc.data();
+        const otherId = chat.participants.find(p => p !== currentUserUID);
+        if (!otherId) return;
+
+        const row = document.createElement('div');
+        row.className = 'chat-row';
+
+        const name = chat.otherName || 'Chat';
+        const avatarInitial = name[0] ? name[0].toUpperCase() : 'C';
+        const avatarHtml = chat.otherPhoto
+          ? `<img src="${chat.otherPhoto}" alt="avatar">`
+          : avatarInitial;
+        const lastText = chat.lastMessageText || 'Say hi 👋';
+        const timeStr = chat.lastMessageAt
+          ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+          : '';
+
+        row.innerHTML = `
+          <div class="chat-avatar">${avatarHtml}</div>
+          <div class="chat-main">
+            <div class="chat-top">
+              <div class="chat-name">${name}</div>
+              <div class="chat-time">${timeStr}</div>
+            </div>
+            <div class="chat-last">${lastText}</div>
+          </div>
+        `;
+
+        row.onclick = () => {
+          const friendData = {
+            id: otherId,
+            name: chat.otherName || '',
+            username: chat.otherUsername || '',
+            phone: chat.otherPhone || ''
+          };
+          startChat(friendData, otherId);
+        };
+
+        chatListEl.appendChild(row);
+      });
+    }
+
+    async function initChats(user) {
+      currentUserUID = user.uid;
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (!userDoc.exists || !userDoc.data().username || !userDoc.data().phone) {
+        window.location.href = 'setup.html';
+        return;
+      }
+      currentUserData = userDoc.data();
+      renderSelfProfile();
+
+      db.collection('chats')
+        .where('participants', 'array-contains', currentUserUID)
+        .orderBy('lastMessageAt', 'desc')
+        .onSnapshot(renderChats, (error) => {
+          console.error(error);
+          chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
+        });
+    }
+
+    document.getElementById('profileBtn').onclick = openProfile;
+    document.getElementById('scanBtn').onclick = openScanner;
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      initChats(user);
+    });
+  </script>
+</body>
+</html>
