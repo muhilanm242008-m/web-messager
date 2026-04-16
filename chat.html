@@ -11,15 +11,12 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100%;
-    }
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #111b21;
       color: #e9edef;
-      min-height: 100vh;          /* instead of fixed 100vh */
-      display: flex;              /* make page a flex column */
+      display: flex;
       flex-direction: column;
     }
     .top-nav {
@@ -29,7 +26,7 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #2a3942;
-      flex-shrink: 0;             /* never shrink away */
+      flex-shrink: 0;
     }
     .back-btn {
       background: none;
@@ -90,7 +87,7 @@
     .main-chat {
       display: flex;
       flex-direction: column;
-      flex: 1;                    /* take remaining height under nav */
+      flex: 1;
       background: #0b141a;
       max-width: 900px;
       width: 100%;
@@ -391,9 +388,11 @@
     }
 
     function loadMessages() {
+      console.log('Listening to messages for chatId=', chatId);
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
         .onSnapshot(async (snapshot) => {
+          console.log('Snapshot size=', snapshot.size);
           messagesEl.innerHTML = '';
           if (snapshot.empty) {
             messagesEl.innerHTML = `
@@ -439,6 +438,7 @@
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
         chatId = [userUID, selectedFriend.id].sort().join('_');
+        console.log('Computed chatId=', chatId);
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
 
@@ -666,12 +666,7 @@
       camEnabled = true;
     }
 
-    const videoBtnEl = document.getElementById('videoBtn');
-    const hangupBtn = document.getElementById('hangupBtn');
-    const toggleMicBtn = document.getElementById('toggleMicBtn');
-    const toggleCamBtn = document.getElementById('toggleCamBtn');
-
-    videoBtnEl.onclick = () => {
+    videoBtn.onclick = () => {
       startCall();
     };
 
