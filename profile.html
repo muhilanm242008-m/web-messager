@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Secure Messenger - Profile</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -252,7 +253,6 @@
   </div>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
       authDomain: "web-messager-533ae.firebaseapp.com",
@@ -263,7 +263,9 @@
       measurementId: "G-Q3136YFH7C"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -306,7 +308,6 @@
       const phone = currentUserData.phone || '';
       const photo = currentUserData.photo || '';
 
-      // Store some values for other pages if needed
       localStorage.setItem('userName', name);
       localStorage.setItem('userUsername', username);
       localStorage.setItem('userPhone', phone);
@@ -323,7 +324,6 @@
         avatarEl.textContent = (name[0] || 'U').toUpperCase();
       }
 
-      // QR: encode uid/username/phone
       const qrValue = JSON.stringify({
         uid: currentUserUID,
         username,
@@ -400,8 +400,6 @@
       const theirFriendRef = db.collection('users').doc(friendId)
         .collection('friends').doc(myUid);
 
-      console.log('Writing friends:', myFriendRef.path, theirFriendRef.path);
-
       const now = firebase.firestore.FieldValue.serverTimestamp();
 
       batch.set(myFriendRef, {
@@ -450,11 +448,9 @@
       try {
         let snapshot;
         if (/^\d+$/.test(query)) {
-          // mobile number
           snapshot = await db.collection('users')
             .where('phone', '==', query).limit(1).get();
         } else {
-          // username
           snapshot = await db.collection('users')
             .where('username', '==', query.toLowerCase()).limit(1).get();
         }
