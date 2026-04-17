@@ -19,12 +19,11 @@
       background: #111b21;
       color: #e9edef;
       margin: 0;
-      overflow: hidden; /* prevent body scrolling; we scroll only messages */
+      overflow: hidden; /* scroll only messages */
     }
 
-    /* FIXED top nav */
     .top-nav {
-      position: sticky;
+      position: fixed;
       top: 0;
       left: 0;
       right: 0;
@@ -92,11 +91,10 @@
     }
     .icon-btn:hover { background: #374652; }
 
-    /* Main chat between header and input */
     .main-chat {
       position: fixed;
-      top: 48px;    /* match header height */
-      bottom: 64px; /* match input bar height */
+      top: 48px;
+      bottom: 64px;
       left: 0;
       right: 0;
       max-width: 900px;
@@ -147,7 +145,6 @@
     .message.me .message-time { text-align: right; }
     .message.friend .message-time { text-align: left; }
 
-    /* FIXED input bar */
     .input-area {
       position: fixed;
       bottom: 0;
@@ -222,7 +219,6 @@
       background: #000;
     }
 
-    /* Video overlay */
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -285,7 +281,6 @@
     .video-btn.end { background: #ff4b4b; }
     .video-btn.reg { background: #2a3942; }
 
-    /* Special style for video call links in chat */
     .video-call-link {
       color: #c1d7ff;
       text-decoration: underline;
@@ -447,6 +442,7 @@
               </div>`;
             return;
           }
+          const now = Date.now();
           for (let doc of snapshot.docs) {
             const msg = doc.data();
             const isMedia = !!msg.mediaUrl;
@@ -457,12 +453,19 @@
 
             let contentHtml = '';
 
-            // Video call link message
             if (!isMedia && msg.videoRoomId) {
               const roomId = msg.videoRoomId;
-              contentHtml = `<span class="video-call-link" data-room="${roomId}">
-                Join video call (${roomId})
-              </span>`;
+              const expiresAt = msg.expiresAt || 0;
+              const expired = expiresAt && now > expiresAt;
+
+              if (expired) {
+                // Hide expired link completely (no text)
+                continue;
+              } else {
+                contentHtml = `<span class="video-call-link" data-room="${roomId}">
+                  Join video call (expires in 10 min)
+                </span>`;
+              }
             } else {
               if (msg.encrypted && chatKey && !isMedia && msg.text) {
                 displayText = await decrypt(msg.text, chatKey);
@@ -497,7 +500,6 @@
             messagesEl.appendChild(msgDiv);
           }
 
-          // Attach click handler for all video-call links
           messagesEl.querySelectorAll('.video-call-link').forEach(el => {
             el.onclick = () => {
               const roomId = el.getAttribute('data-room');
@@ -532,7 +534,6 @@
           this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
 
-        // Mobile: when focusing input, keep header fixed and scroll messages only
         inputEl.addEventListener('focus', () => {
           setTimeout(scrollMessagesToBottom, 200);
         });
@@ -560,6 +561,7 @@
           mediaUrl: null,
           mediaType: null,
           videoRoomId: null,
+          expiresAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -633,6 +635,7 @@
           mediaUrl: url,
           mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
           videoRoomId: null,
+          expiresAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         console.log('Media message saved in Firestore');
@@ -651,7 +654,7 @@
       }
     };
 
-    // ---------- VIDEO CALL via INVITE LINK ----------
+    // ---------- VIDEO CALL via INVITE LINK with EXPIRY ----------
 
     const videoBtn = document.getElementById('videoBtn');
     const videoOverlay = document.getElementById('videoOverlay');
@@ -701,7 +704,6 @@
     }
 
     async function createRoomAndSendLink() {
-      // Generate unique room id for this call
       const roomId = chatId + '_' + Date.now();
       roomRef = db.collection('rooms').doc(roomId);
       await roomRef.set({
@@ -710,7 +712,8 @@
         createdBy: userUID
       });
 
-      // Save a message with videoRoomId so others see link
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
       const msgRef = db.collection('chats').doc(chatId).collection('messages');
       await msgRef.add({
         senderId: userUID,
@@ -719,6 +722,7 @@
         mediaUrl: null,
         mediaType: null,
         videoRoomId: roomId,
+        expiresAt,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -728,7 +732,6 @@
         lastSenderId: userUID
       }, { merge: true });
 
-      // After sending link, auto join the room as caller
       await joinCallRoom(roomId, true);
     }
 
@@ -748,16 +751,14 @@
 
         const roomSnapshot = await roomRef.get();
         if (!roomSnapshot.exists && isCaller) {
-          // Should not happen because we created it, but just in case
           await roomRef.set({
             chatId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: userUID
-          });
+          }, { merge: true });
         }
 
         if (isCaller) {
-          // Create offer
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           await roomRef.set({
@@ -770,7 +771,6 @@
             }
           }, { merge: true });
 
-          // Listen for answer
           roomRef.onSnapshot(async (snapshot) => {
             const data = snapshot.data();
             if (!pc.currentRemoteDescription && data && data.answer) {
@@ -781,7 +781,6 @@
           });
 
         } else {
-          // Join as callee
           const snap = await roomRef.get();
           if (!snap.exists || !snap.data().offer) {
             alert('Call not ready yet. Ask your friend to create link again.');
@@ -799,7 +798,6 @@
             }
           }, { merge: true });
 
-          // Update status when connected
           roomRef.onSnapshot(s => {
             const d = s.data();
             if (d && d.answer) {
@@ -808,7 +806,6 @@
           });
         }
 
-        // ICE listeners
         const otherCandidatesCol = roomRef.collection(isCaller ? 'calleeCandidates' : 'callerCandidates');
         otherCandidatesCol.onSnapshot(snapshot => {
           snapshot.docChanges().forEach(change => {
@@ -857,7 +854,6 @@
       camEnabled = true;
     }
 
-    // Button handlers
     videoBtn.onclick = () => {
       if (!chatId) return;
       createRoomAndSendLink();
