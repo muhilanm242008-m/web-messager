@@ -477,6 +477,7 @@
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
         chatId = [userUID, selectedFriend.id].sort().join('_');
+        console.log('Computed chatId =', chatId);
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
 
@@ -523,7 +524,7 @@
         inputEl.value = '';
         inputEl.style.height = '40px';
       } catch (e) {
-        console.error('Send error:', e);
+        console.error('Send text error:', e);
         alert('Failed to send message');
       } finally {
         this.disabled = false;
@@ -538,7 +539,10 @@
     };
 
     attachBtn.onclick = () => {
-      if (!chatId) return;
+      if (!chatId) {
+        console.warn('No chatId yet, cannot attach');
+        return;
+      }
       mediaInput.click();
     };
 
@@ -547,18 +551,27 @@
       if (!file || !chatId) return;
 
       try {
-        // Simple client-side limit: 20MB max
         if (file.size > 20 * 1024 * 1024) {
           alert('File is too large (max 20MB).');
           mediaInput.value = '';
           return;
         }
 
+        console.log('Uploading file:', {
+          name: file.name,
+          type: file.type,
+          size: file.size
+        });
+
         const fileName = Date.now() + '_' + file.name;
         const ref = storage.ref().child(`chatMedia/${chatId}/${fileName}`);
+        console.log('Storage path:', ref.fullPath);
 
         const snapshot = await ref.put(file);
+        console.log('Upload completed, snapshot:', snapshot);
+
         const url = await snapshot.ref.getDownloadURL();
+        console.log('Download URL:', url);
 
         const isImage = file.type.startsWith('image/');
         const isVideo = file.type.startsWith('video/');
@@ -572,6 +585,7 @@
           mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        console.log('Media message saved in Firestore');
 
         await db.collection('chats').doc(chatId).set({
           lastMessageText: isImage ? '[Photo]' : (isVideo ? '[Video]' : '[File]'),
