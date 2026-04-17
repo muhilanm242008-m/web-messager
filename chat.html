@@ -19,9 +19,10 @@
       background: #111b21;
       color: #e9edef;
       margin: 0;
+      overflow: hidden; /* prevent body scrolling; we scroll only messages */
     }
 
-    /* FIXED top nav like WhatsApp Web */
+    /* FIXED top nav */
     .top-nav {
       position: fixed;
       top: 0;
@@ -91,12 +92,11 @@
     }
     .icon-btn:hover { background: #374652; }
 
-    /* Main chat area between fixed header and footer */
+    /* Main chat between header and input */
     .main-chat {
       position: fixed;
-      /* adjust these two to match actual heights of top-nav and input-area */
-      top: 48px;    /* header height */
-      bottom: 64px; /* input bar height */
+      top: 48px;    /* match header height */
+      bottom: 64px; /* match input bar height */
       left: 0;
       right: 0;
       max-width: 900px;
@@ -110,6 +110,7 @@
       flex: 1;
       overflow-y: auto;
       padding: 12px 10px;
+      -webkit-overflow-scrolling: touch;
     }
     .message {
       margin-bottom: 12px;
@@ -146,7 +147,7 @@
     .message.me .message-time { text-align: right; }
     .message.friend .message-time { text-align: left; }
 
-    /* FIXED input bar at bottom */
+    /* FIXED input bar */
     .input-area {
       position: fixed;
       bottom: 0;
@@ -221,6 +222,7 @@
       background: #000;
     }
 
+    /* Video overlay */
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -245,9 +247,7 @@
       position: relative;
       background: #000;
     }
-    video {
-      background: #000;
-    }
+    video { background: #000; }
     #remoteVideo {
       width: 100%;
       height: 100%;
@@ -282,11 +282,15 @@
       font-size: 18px;
       color: #fff;
     }
-    .video-btn.end {
-      background: #ff4b4b;
-    }
-    .video-btn.reg {
-      background: #2a3942;
+    .video-btn.end { background: #ff4b4b; }
+    .video-btn.reg { background: #2a3942; }
+
+    /* Special style for video call links in chat */
+    .video-call-link {
+      color: #c1d7ff;
+      text-decoration: underline;
+      cursor: pointer;
+      word-break: break-all;
     }
   </style>
 </head>
@@ -426,6 +430,10 @@
       }
     }
 
+    function scrollMessagesToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
     function loadMessages() {
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
@@ -444,34 +452,41 @@
             const isMedia = !!msg.mediaUrl;
             let displayText = msg.text;
 
-            if (msg.encrypted && chatKey && !isMedia && msg.text) {
-              displayText = await decrypt(msg.text, chatKey);
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + (msg.senderId === userUID ? 'me' : 'friend');
+
+            let contentHtml = '';
+
+            // Video call link message
+            if (!isMedia && msg.videoRoomId) {
+              const roomId = msg.videoRoomId;
+              contentHtml = `<span class="video-call-link" data-room="${roomId}">
+                Join video call (${roomId})
+              </span>`;
+            } else {
+              if (msg.encrypted && chatKey && !isMedia && msg.text) {
+                displayText = await decrypt(msg.text, chatKey);
+              }
+
+              if (isMedia) {
+                if (msg.mediaType === 'image') {
+                  contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
+                } else if (msg.mediaType === 'video') {
+                  contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
+                } else {
+                  contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
+                }
+              } else if (displayText) {
+                contentHtml = escapeHtml(displayText);
+              }
             }
 
-            const isMe = msg.senderId === userUID;
             const timeStr = msg.createdAt
               ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit'
                 })
               : 'Pending';
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message ' + (isMe ? 'me' : 'friend');
-
-            let contentHtml = '';
-
-            if (isMedia) {
-              if (msg.mediaType === 'image') {
-                contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
-              } else if (msg.mediaType === 'video') {
-                contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
-              } else {
-                contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
-              }
-            } else if (displayText) {
-              contentHtml = escapeHtml(displayText);
-            }
 
             msgDiv.innerHTML = `
               <div>
@@ -481,7 +496,18 @@
             `;
             messagesEl.appendChild(msgDiv);
           }
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+
+          // Attach click handler for all video-call links
+          messagesEl.querySelectorAll('.video-call-link').forEach(el => {
+            el.onclick = () => {
+              const roomId = el.getAttribute('data-room');
+              if (roomId) {
+                joinCallRoom(roomId);
+              }
+            };
+          });
+
+          scrollMessagesToBottom();
         }, (error) => {
           console.error('Messages error:', error);
           messagesEl.innerHTML =
@@ -500,11 +526,15 @@
 
         inputEl.disabled = false;
         sendBtn.disabled = false;
-        inputEl.focus();
 
         inputEl.addEventListener('input', function() {
           this.style.height = 'auto';
           this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Mobile: when focusing input, keep header fixed and scroll messages only
+        inputEl.addEventListener('focus', () => {
+          setTimeout(scrollMessagesToBottom, 200);
         });
 
         loadMessages();
@@ -529,6 +559,7 @@
           encrypted: true,
           mediaUrl: null,
           mediaType: null,
+          videoRoomId: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -540,6 +571,7 @@
 
         inputEl.value = '';
         inputEl.style.height = '40px';
+        scrollMessagesToBottom();
       } catch (e) {
         console.error('Send text error:', e);
         alert('Failed to send message');
@@ -600,6 +632,7 @@
           encrypted: false,
           mediaUrl: url,
           mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
+          videoRoomId: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         console.log('Media message saved in Firestore');
@@ -611,13 +644,14 @@
         }, { merge: true });
 
         mediaInput.value = '';
+        scrollMessagesToBottom();
       } catch (err) {
         console.error('Upload media error:', err);
         alert('Failed to send media: ' + err.message);
       }
     };
 
-    // ---------- VIDEO CALL (WebRTC + Firestore signaling) ----------
+    // ---------- VIDEO CALL via INVITE LINK ----------
 
     const videoBtn = document.getElementById('videoBtn');
     const videoOverlay = document.getElementById('videoOverlay');
@@ -666,73 +700,39 @@
       };
     }
 
-    async function createRoom() {
-      caller = true;
-      roomRef = db.collection('rooms').doc(chatId);
-      await roomRef.set({ chatId, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-      await createPeerConnection();
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await roomRef.update({ offer: { type: offer.type, sdp: offer.sdp } });
-
-      roomRef.onSnapshot(async (snapshot) => {
-        const data = snapshot.data();
-        if (!pc.currentRemoteDescription && data && data.answer) {
-          const answerDesc = new RTCSessionDescription(data.answer);
-          await pc.setRemoteDescription(answerDesc);
-          callStatus.textContent = 'Connected';
-        }
+    async function createRoomAndSendLink() {
+      // Generate unique room id for this call
+      const roomId = chatId + '_' + Date.now();
+      roomRef = db.collection('rooms').doc(roomId);
+      await roomRef.set({
+        chatId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy: userUID
       });
 
-      roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            pc.addIceCandidate(candidate);
-          }
-        });
+      // Save a message with videoRoomId so others see link
+      const msgRef = db.collection('chats').doc(chatId).collection('messages');
+      await msgRef.add({
+        senderId: userUID,
+        text: '',
+        encrypted: false,
+        mediaUrl: null,
+        mediaType: null,
+        videoRoomId: roomId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      await db.collection('chats').doc(chatId).set({
+        lastMessageText: '[Video call link]',
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderId: userUID
+      }, { merge: true });
+
+      // After sending link, auto join the room as caller
+      await joinCallRoom(roomId, true);
     }
 
-    async function joinRoom() {
-      caller = false;
-      roomRef = db.collection('rooms').doc(chatId);
-      const roomSnapshot = await roomRef.get();
-      if (!roomSnapshot.exists || !roomSnapshot.data().offer) {
-        alert('No active call. Ask your friend to call you.');
-        endCall();
-        return;
-      }
-
-      await createPeerConnection();
-
-      const offer = roomSnapshot.data().offer;
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      await roomRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
-
-      roomRef.collection('callerCandidates').onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            pc.addIceCandidate(candidate);
-          }
-        });
-      });
-
-      roomRef.onSnapshot(snapshot => {
-        const data = snapshot.data();
-        if (data && data.answer) {
-          callStatus.textContent = 'Connected';
-        }
-      });
-    }
-
-    async function startCall() {
+    async function joinCallRoom(roomId, isCaller = false) {
       try {
         videoOverlay.style.display = 'flex';
         callLabel.textContent =
@@ -741,16 +741,87 @@
         callStatus.textContent = 'Connecting...';
 
         await startLocalMedia();
+        await createPeerConnection();
 
-        const roomSnapshot = await db.collection('rooms').doc(chatId).get();
-        if (roomSnapshot.exists && roomSnapshot.data().offer) {
-          await joinRoom();
-        } else {
-          await createRoom();
+        caller = isCaller;
+        roomRef = db.collection('rooms').doc(roomId);
+
+        const roomSnapshot = await roomRef.get();
+        if (!roomSnapshot.exists && isCaller) {
+          // Should not happen because we created it, but just in case
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID
+          });
         }
+
+        if (isCaller) {
+          // Create offer
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID,
+            offer: {
+              type: offer.type,
+              sdp: offer.sdp
+            }
+          }, { merge: true });
+
+          // Listen for answer
+          roomRef.onSnapshot(async (snapshot) => {
+            const data = snapshot.data();
+            if (!pc.currentRemoteDescription && data && data.answer) {
+              const answerDesc = new RTCSessionDescription(data.answer);
+              await pc.setRemoteDescription(answerDesc);
+              callStatus.textContent = 'Connected';
+            }
+          });
+
+        } else {
+          // Join as callee
+          const snap = await roomRef.get();
+          if (!snap.exists || !snap.data().offer) {
+            alert('Call not ready yet. Ask your friend to create link again.');
+            endCall();
+            return;
+          }
+          const offer = snap.data().offer;
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await roomRef.set({
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp
+            }
+          }, { merge: true });
+
+          // Update status when connected
+          roomRef.onSnapshot(s => {
+            const d = s.data();
+            if (d && d.answer) {
+              callStatus.textContent = 'Connected';
+            }
+          });
+        }
+
+        // ICE listeners
+        const otherCandidatesCol = roomRef.collection(isCaller ? 'calleeCandidates' : 'callerCandidates');
+        otherCandidatesCol.onSnapshot(snapshot => {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+              const candidate = new RTCIceCandidate(change.doc.data());
+              pc.addIceCandidate(candidate);
+            }
+          });
+        });
+
       } catch (e) {
-        console.error('Video call error:', e);
-        alert('Unable to start video call.');
+        console.error('Join call room error:', e);
+        alert('Unable to start/join video call.');
         endCall();
       }
     }
@@ -786,8 +857,10 @@
       camEnabled = true;
     }
 
+    // Button handlers
     videoBtn.onclick = () => {
-      startCall();
+      if (!chatId) return;
+      createRoomAndSendLink();
     };
 
     hangupBtn.onclick = () => {
