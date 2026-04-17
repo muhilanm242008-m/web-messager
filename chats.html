@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -766,7 +766,6 @@
       });
     }
 
-    // FIXED: build array + Promise.all, then render once, then attach unread listeners
     async function renderChats(snapshot) {
       chatListEl.innerHTML = '<div class="status"><strong>Loading chats...</strong></div>';
 
@@ -796,7 +795,6 @@
         });
       }));
 
-      // Sort by lastMessageAt desc (nulls last)
       chatItems.sort((a, b) => {
         const ta = a.chat.lastMessageAt ? a.chat.lastMessageAt.toMillis() : 0;
         const tb = b.chat.lastMessageAt ? b.chat.lastMessageAt.toMillis() : 0;
@@ -841,7 +839,6 @@
           ? chat.lastSeen[currentUserUID].toDate()
           : new Date(0);
 
-        // Per‑chat unread listener
         db.collection('chats').doc(chatId).collection('messages')
           .where('createdAt', '>', lastSeenTs)
           .onSnapshot((msgSnap) => {
@@ -1020,7 +1017,6 @@
       currentUserData = userDoc.data();
       renderSelfProfile();
 
-      // NOTE: remove orderBy here; we sort in JS so chats without lastMessageAt still appear [web:108][web:110]
       db.collection('chats')
         .where('participants', 'array-contains', currentUserUID)
         .onSnapshot(renderChats, (error) => {
