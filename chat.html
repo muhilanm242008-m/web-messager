@@ -5,7 +5,6 @@
   <title>Secure Messenger - Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -19,7 +18,7 @@
       background: #111b21;
       color: #e9edef;
       margin: 0;
-      overflow: hidden; /* scroll only messages */
+      overflow: hidden;
     }
 
     .top-nav {
@@ -291,7 +290,7 @@
 </head>
 <body>
   <div class="top-nav">
-    <button class="back-btn" onclick="window.location.href='chats.html'">←</button>
+    <button class="back-btn" onclick="handleBack()">←</button>
     <div class="chat-header">
       <div class="chat-title" id="chatTitle">Loading chat...</div>
       <div class="e2ee-status">🔒 Messages & video are end-to-end encrypted</div>
@@ -459,7 +458,6 @@
               const expired = expiresAt && now > expiresAt;
 
               if (expired) {
-                // Hide expired link completely (no text)
                 continue;
               } else {
                 contentHtml = `<span class="video-call-link" data-room="${roomId}">
@@ -517,14 +515,29 @@
         });
     }
 
+    async function updateLastSeen() {
+      if (!chatId || !userUID) return;
+      try {
+        await db.collection('chats').doc(chatId).set({
+          lastSeen: {
+            [userUID]: firebase.firestore.FieldValue.serverTimestamp()
+          }
+        }, { merge: true });
+      } catch (e) {
+        console.error('updateLastSeen error:', e);
+      }
+    }
+
     async function initChat() {
       try {
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
         chatId = [userUID, selectedFriend.id].sort().join('_');
-        console.log('Computed chatId =', chatId);
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
+
+        // Mark all current messages as seen when opening this chat
+        await updateLastSeen();
 
         inputEl.disabled = false;
         sendBtn.disabled = false;
@@ -544,6 +557,11 @@
         messagesEl.innerHTML =
           '<div class="no-chat">❌ Chat connection failed</div>';
       }
+    }
+
+    async function handleBack() {
+      await updateLastSeen();  // ensure latest messages marked as seen
+      window.location.href = 'chats.html';
     }
 
     sendBtn.onclick = async function() {
@@ -608,21 +626,10 @@
           return;
         }
 
-        console.log('Uploading file:', {
-          name: file.name,
-          type: file.type,
-          size: file.size
-        });
-
         const fileName = Date.now() + '_' + file.name;
         const ref = storage.ref().child(`chatMedia/${chatId}/${fileName}`);
-        console.log('Storage path:', ref.fullPath);
-
         const snapshot = await ref.put(file);
-        console.log('Upload completed, snapshot:', snapshot);
-
         const url = await snapshot.ref.getDownloadURL();
-        console.log('Download URL:', url);
 
         const isImage = file.type.startsWith('image/');
         const isVideo = file.type.startsWith('video/');
@@ -638,7 +645,6 @@
           expiresAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log('Media message saved in Firestore');
 
         await db.collection('chats').doc(chatId).set({
           lastMessageText: isImage ? '[Photo]' : (isVideo ? '[Video]' : '[File]'),
@@ -854,6 +860,19 @@
       camEnabled = true;
     }
 
+    const videoBtn = document.getElementById('videoBtn');
+    const videoOverlay = document.getElementById('videoOverlay');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const callLabel = document.getElementById('callLabel');
+    const callStatus = document.getElementById('callStatus');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+
+    let micEnabled = true;
+    let camEnabled = true;
+
     videoBtn.onclick = () => {
       if (!chatId) return;
       createRoomAndSendLink();
@@ -876,6 +895,12 @@
       localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        updateLastSeen();
+      }
+    });
 
     auth.onAuthStateChanged((user) => {
       if (!user) {
