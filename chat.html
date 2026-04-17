@@ -18,17 +18,22 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #111b21;
       color: #e9edef;
-      display: flex;
-      flex-direction: column;
+      margin: 0;
     }
+
+    /* FIXED top nav like WhatsApp Web */
     .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
       background: #202c33;
       padding: 6px 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #2a3942;
-      flex-shrink: 0;
     }
     .back-btn {
       background: none;
@@ -86,15 +91,21 @@
     }
     .icon-btn:hover { background: #374652; }
 
+    /* Main chat area between fixed header and footer */
     .main-chat {
+      position: fixed;
+      /* adjust these two to match actual heights of top-nav and input-area */
+      top: 48px;    /* header height */
+      bottom: 64px; /* input bar height */
+      left: 0;
+      right: 0;
+      max-width: 900px;
+      margin: 0 auto;
+      background: #0b141a;
       display: flex;
       flex-direction: column;
-      flex: 1;
-      background: #0b141a;
-      max-width: 900px;
-      width: 100%;
-      margin: 0 auto;
     }
+
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -135,14 +146,19 @@
     .message.me .message-time { text-align: right; }
     .message.friend .message-time { text-align: left; }
 
+    /* FIXED input bar at bottom */
     .input-area {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
       padding: 8px 10px;
       background: #202c33;
       border-top: 1px solid #2a3942;
       display: flex;
       align-items: flex-end;
       gap: 8px;
-      flex-shrink: 0;
     }
     .input {
       flex: 1;
@@ -179,6 +195,7 @@
       background: #404c55;
       cursor: not-allowed;
     }
+
     .no-chat {
       display: flex;
       flex-direction: column;
@@ -210,7 +227,7 @@
       background: rgba(0,0,0,0.85);
       display: none;
       flex-direction: column;
-      z-index: 20;
+      z-index: 200;
     }
     .video-top {
       display: flex;
@@ -292,13 +309,13 @@
         <div>Messages will appear here</div>
       </div>
     </div>
-    <div class="input-area">
-      <!-- Attach button + hidden file input -->
-      <button class="icon-btn" id="attachBtn" title="Attach photo/video">📎</button>
-      <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;">
-      <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
-      <button id="sendBtn" class="send-btn" disabled>➤</button>
-    </div>
+  </div>
+
+  <div class="input-area">
+    <button class="icon-btn" id="attachBtn" title="Attach photo/video">📎</button>
+    <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;">
+    <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
+    <button id="sendBtn" class="send-btn" disabled>➤</button>
   </div>
 
   <div class="video-overlay" id="videoOverlay">
