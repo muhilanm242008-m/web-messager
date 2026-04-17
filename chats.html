@@ -2,86 +2,363 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Secure Messenger - Chat</title>
+  <title>Secure Messenger - chats</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #111b21;
+      background: radial-gradient(circle at top, #202c33 0, #0b141a 45%, #020c12 100%);
       color: #e9edef;
-      margin: 0;
-      overflow: hidden;
+      min-height: 100vh;
     }
-
     .top-nav {
-      position: fixed;
+      position: sticky;
       top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      background: #202c33;
-      padding: 6px 10px;
+      z-index: 10;
+      padding: 12px 16px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #2a3942;
+      justify-content: space-between;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(15, 23, 30, 0.72);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
     }
-    .back-btn {
-      background: none;
-      color: #e9edef;
-      border: none;
-      font-size: 1.4em;
-      cursor: pointer;
-      padding: 6px;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      background: conic-gradient(from 210deg, #00a884, #00d4aa, #007765, #00a884);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0b141a;
     }
-    .chat-header {
+    .brand-title {
       display: flex;
       flex-direction: column;
-      align-items: center;
       gap: 2px;
-      flex: 1;
     }
-    .chat-title {
+    .brand-title span:first-child {
       font-size: 16px;
-      font-weight: 500;
-      text-align: center;
-      max-width: 200px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-weight: 600;
     }
-    .e2ee-status {
-      font-size: 10px;
-      color: #00a884;
-      text-align: center;
-      max-width: 200px;
+    .brand-title span:last-child {
+      font-size: 11px;
+      color: #8696a0;
     }
+
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
     .icon-btn {
       width: 32px;
       height: 32px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #e9edef;
+      font-size: 16px;
+      backdrop-filter: blur(16px);
+      transition: background 0.15s, transform 0.15s;
+    }
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-1px);
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 12px 12px 24px;
+    }
+    @media (min-width: 768px) {
+      .main { padding: 16px 20px 32px; }
+    }
+
+    .me-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      border-radius: 20px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .me-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .me-avatar {
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      overflow: hidden;
+    }
+    .me-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .me-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .me-name {
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .me-meta {
+      font-size: 12px;
+      color: #8696a0;
+    }
+    .e2ee-pill {
+      font-size: 11px;
+      color: #00a884;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,168,132,0.6);
+      background: rgba(0,168,132,0.08);
+      text-align: center;
+    }
+
+    .search-card {
+      margin-top: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 18px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(20,30,38,0.9);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .search-title {
+      font-size: 13px;
+      color: #8696a0;
+      margin-bottom: 6px;
+    }
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .search-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      background: rgba(32,44,51,0.95);
+      color: #e9edef;
+      font-size: 14px;
+    }
+    .search-input::placeholder { color: #8696a0; }
+    .search-input:focus {
+      outline: none;
+      border-color: #00a884;
+      box-shadow: 0 0 0 2px rgba(0,168,132,0.35);
+    }
+    .search-btn {
+      padding: 0 10px;
+      border-radius: 16px;
       border: none;
-      background: #2a3942;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .search-btn:disabled {
+      background: #404c55;
+      cursor: not-allowed;
+    }
+    .search-status {
+      font-size: 12px;
+      color: #8696a0;
+      min-height: 1.2em;
+    }
+
+    .section-title {
+      margin: 10px 2px;
+      font-size: 13px;
+      color: #8696a0;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .chat-list {
+      border-radius: 18px;
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(15, 23, 30, 0.88);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+    }
+    .chat-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .chat-row:last-child {
+      border-bottom: none;
+    }
+    .chat-row:hover {
+      background: rgba(255,255,255,0.04);
+    }
+    .chat-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .chat-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .chat-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .chat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .chat-name {
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-time {
+      font-size: 11px;
+      color: #8696a0;
+      white-space: nowrap;
+    }
+    .chat-last {
+      font-size: 13px;
+      color: #8696a0;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 40px;
+    }
+    .unread-badge {
+      min-width: 18px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #25d366;
+      color: #0b141a;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 13px;
+      color: #8696a0;
+      padding: 12px;
+    }
+    .status strong { color: #00a884; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh;
+      overflow: hidden;
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(15, 23, 30, 0.92);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .modal-close {
+      border: none;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      width: 26px;
+      height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -89,247 +366,197 @@
       cursor: pointer;
       font-size: 16px;
     }
-    .icon-btn:hover { background: #374652; }
 
-    .main-chat {
-      position: fixed;
-      top: 48px;
-      bottom: 64px;
-      left: 0;
-      right: 0;
-      max-width: 900px;
-      margin: 0 auto;
-      background: #0b141a;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 10px;
-      -webkit-overflow-scrolling: touch;
-    }
-    .message {
-      margin-bottom: 12px;
-      display: flex;
-      max-width: 100%;
-    }
-    .message.me { justify-content: flex-end; }
-    .message.friend { justify-content: flex-start; }
-    .message-bubble {
-      max-width: 100%;
-      padding: 6px 10px;
-      border-radius: 7.5px;
-      word-wrap: break-word;
-      box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
-      font-size: 14px;
-      white-space: normal;
-      word-break: break-word;
-    }
-    .message.me .message-bubble {
-      background: #005c4b;
-      color: white;
-      border-bottom-right-radius: 0;
-    }
-    .message.friend .message-bubble {
-      background: #202c33;
-      color: #e9edef;
-      border-bottom-left-radius: 0;
-    }
-    .message-time {
-      font-size: 10px;
-      color: #667781;
-      margin-top: 2px;
-    }
-    .message.me .message-time { text-align: right; }
-    .message.friend .message-time { text-align: left; }
-
-    .input-area {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      padding: 8px 10px;
-      background: #202c33;
-      border-top: 1px solid #2a3942;
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-    }
-    .input {
-      flex: 1;
-      padding: 9px 12px;
-      background: #2a3942;
-      border: none;
-      border-radius: 18px;
-      color: white;
-      font-size: 14px;
-      resize: none;
-      max-height: 120px;
-      min-height: 40px;
-      line-height: 18px;
-    }
-    .input::placeholder { color: #8696a0; }
-    .input:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(0,168,132,0.3);
-    }
-    .send-btn {
-      width: 40px;
-      height: 40px;
-      background: #00a884;
-      border: none;
-      border-radius: 50%;
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-    .send-btn:disabled {
-      background: #404c55;
-      cursor: not-allowed;
-    }
-
-    .no-chat {
+    .profile-body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #8696a0;
-      font-size: 14px;
-      text-align: center;
-      gap: 6px;
+      gap: 10px;
+      padding: 8px;
     }
-    .loading { color: #00a884; }
-
-    .media-img {
-      max-width: 220px;
-      border-radius: 10px;
-      display: block;
-    }
-    .media-video {
-      max-width: 220px;
-      border-radius: 10px;
-      display: block;
-      background: #000;
-    }
-
-    .video-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      display: none;
-      flex-direction: column;
-      z-index: 200;
-    }
-    .video-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 12px;
-      color: #e9edef;
-      font-size: 14px;
-    }
-    .video-main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      background: #000;
-    }
-    video { background: #000; }
-    #remoteVideo {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    #localVideo {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      width: 120px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 10px;
-      border: 2px solid rgba(255,255,255,0.7);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-    }
-    .video-controls {
+    .profile-qr {
+      margin-top: 6px;
       padding: 10px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
     }
-    .video-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      color: #fff;
+    .profile-meta {
+      font-size: 13px;
+      color: #8696a0;
+      text-align: center;
     }
-    .video-btn.end { background: #ff4b4b; }
-    .video-btn.reg { background: #2a3942; }
-
-    .video-call-link {
-      color: #c1d7ff;
-      text-decoration: underline;
-      cursor: pointer;
-      word-break: break-all;
+    .scanner-body {
+      padding: 6px;
+    }
+    #qr-scanner {
+      width: 100%;
+      max-height: 320px;
     }
   </style>
 </head>
 <body>
   <div class="top-nav">
-    <button class="back-btn" onclick="window.location.href='chats.html'">←</button>
-    <div class="chat-header">
-      <div class="chat-title" id="chatTitle">Loading chat...</div>
-      <div class="e2ee-status">🔒 Messages & video are end-to-end encrypted</div>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-title">
+        <span>Secure Messenger</span>
+        <span>by muhilan</span>
+      </div>
     </div>
     <div class="nav-actions">
-      <button class="icon-btn" id="videoBtn" title="Video call">📹</button>
+      <div id="requestBadge" style="
+        display:none;
+        min-width:18px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:#f15c5c;
+        color:white;
+        font-size:10px;
+        font-weight:600;
+        text-align:center;
+      " title="Pending chat requests">0</div>
+      <button class="icon-btn" id="scanBtn" title="Scan QR">📷</button>
+      <button class="icon-btn" id="profileBtn" title="Profile">⚙️</button>
     </div>
   </div>
 
-  <div class="main-chat">
-    <div class="messages" id="messages">
-      <div class="no-chat">
-        <div style="font-size: 36px;">💬</div>
-        <div>Messages will appear here</div>
+  <div class="main">
+    <div class="me-card">
+      <div class="me-info">
+        <div class="me-avatar" id="meAvatar">U</div>
+        <div class="me-text">
+          <div class="me-name" id="meName">Loading...</div>
+          <div class="me-meta" id="meMeta">@username · phone</div>
+        </div>
+      </div>
+      <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
+    </div>
+
+    <div id="requestBar" style="
+      display:none;
+      margin:4px 2px 8px;
+      padding:8px 10px;
+      border-radius:14px;
+      background:rgba(250, 238, 190, 0.08);
+      border:1px solid rgba(250, 200, 80, 0.4);
+      color:#fdd663;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    ">
+      <div id="requestBarText">New chat request.</div>
+      <div style="display:flex;gap:6px;">
+        <button id="requestRejectBtn" class="icon-btn" style="background:#2a3942;">✖</button>
+        <button id="requestAcceptBtn" class="icon-btn" style="background:#00a884;">✔</button>
+      </div>
+    </div>
+
+    <div class="search-card">
+      <div class="search-title">Add friend by username or mobile</div>
+      <div class="search-row">
+        <input id="friendQuery" class="search-input" placeholder="friend username or phone">
+        <button id="addFriendBtn" class="search-btn">Send request</button>
+      </div>
+      <div id="addStatus" class="search-status"></div>
+    </div>
+
+    <div class="section-title">Chats</div>
+    <div class="chat-list" id="chatList">
+      <div class="status"><strong>Loading chats...</strong></div>
+    </div>
+  </div>
+
+  <!-- Profile modal -->
+  <div class="modal-backdrop" id="profileModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">My Profile</div>
+        <button class="modal-close" onclick="closeProfile()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="profileAvatar">U</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="profileName">Name</div>
+          <div class="me-meta" id="profileMeta">@username · phone</div>
+        </div>
+        <div class="profile-qr">
+          <canvas id="qrCanvas" width="160" height="160"></canvas>
+        </div>
+        <div class="profile-meta">
+          Ask friends to scan this QR<br>
+          or search your username / mobile.
+        </div>
+        <button class="icon-btn" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="logout()">
+          Logout
+        </button>
       </div>
     </div>
   </div>
 
-  <div class="input-area">
-    <button class="icon-btn" id="attachBtn" title="Attach photo/video">📎</button>
-    <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;">
-    <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
-    <button id="sendBtn" class="send-btn" disabled>➤</button>
+  <!-- QR scanner modal -->
+  <div class="modal-backdrop" id="scanModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Scan friend QR</div>
+        <button class="modal-close" onclick="closeScanner()">×</button>
+      </div>
+      <div class="scanner-body">
+        <div id="qr-scanner"></div>
+        <div class="profile-meta" style="margin-top:6px;">
+          Point your camera at your friend's Secure Messenger QR.
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="video-overlay" id="videoOverlay">
-    <div class="video-top">
-      <span id="callLabel">Video call</span>
-      <span id="callStatus">Connecting...</span>
+  <!-- Friend preview after QR scan -->
+  <div class="modal-backdrop" id="qrFriendModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Start conversation?</div>
+        <button class="modal-close" onclick="closeQrFriendModal()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="qrFriendAvatar">F</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="qrFriendName">Friend name</div>
+          <div class="me-meta" id="qrFriendMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          This person is from QR. Send them a request to start an encrypted chat.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectQrFriend()">Cancel</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptQrFriendBtn">Send request</button>
+        </div>
+      </div>
     </div>
-    <div class="video-main">
-      <video id="remoteVideo" autoplay playsinline></video>
-      <video id="localVideo" autoplay playsinline muted></video>
-    </div>
-    <div class="video-controls">
-      <button class="video-btn reg" id="toggleMicBtn">🎙️</button>
-      <button class="video-btn reg" id="toggleCamBtn">📷</button>
-      <button class="video-btn end" id="hangupBtn">✖</button>
+  </div>
+
+  <!-- Incoming friend request -->
+  <div class="modal-backdrop" id="incomingReqModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">New chat request</div>
+        <button class="modal-close" onclick="closeIncomingReqModal()">×</button>
+      </div>
+      <div class="profile-body">
+        <div class="me-avatar" id="incomingReqAvatar">U</div>
+        <div style="text-align:center;">
+          <div class="me-name" id="incomingReqName">Name</div>
+          <div class="me-meta" id="incomingReqMeta">@username · phone</div>
+        </div>
+        <div class="profile-meta">
+          wants to start an encrypted conversation with you.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
+          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectIncomingReq()">Reject</button>
+          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptIncomingReqBtn">Accept</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -344,564 +571,537 @@
       measurementId: "G-Q3136YFH7C"
     };
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    const storage = firebase.storage();
 
-    let userUID = null;
-    let selectedFriend = null;
-    let chatKey = null;
-    let chatId = null;
+    let currentUserUID = null;
+    let currentUserData = null;
+    let qrScanner = null;
 
-    const messagesEl = document.getElementById('messages');
-    const inputEl = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const mediaInput = document.getElementById('mediaInput');
-    const attachBtn = document.getElementById('attachBtn');
+    const chatListEl = document.getElementById('chatList');
+    const addFriendBtn = document.getElementById('addFriendBtn');
+    const addStatusEl = document.getElementById('addStatus');
 
-    function escapeHtml(text) {
-      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-      return text.replace(/[&<>"']/g, m => map[m]);
+    let qrScannedFriend = null;
+    let qrScannedFriendId = null;
+    let incomingReq = null;
+    let pendingReqCount = 0;
+
+    const requestBadgeEl = document.getElementById('requestBadge');
+    const requestBarEl = document.getElementById('requestBar');
+    const requestBarTextEl = document.getElementById('requestBarText');
+
+    function logout() {
+      localStorage.clear();
+      auth.signOut().then(() => window.location.href = 'index.html');
     }
 
-    async function getChatKey(uid1, uid2) {
-      const combined = [uid1, uid2].sort().join(':');
-      const encoder = new TextEncoder();
-      const keyData = encoder.encode(combined);
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', keyData);
-      const key = await window.crypto.subtle.importKey(
-        'raw', hashBuffer, {name: 'AES-GCM'}, false, ['encrypt', 'decrypt']
-      );
-      return key;
+    function openProfile() {
+      document.getElementById('profileModal').style.display = 'flex';
+    }
+    function closeProfile() {
+      document.getElementById('profileModal').style.display = 'none';
     }
 
-    async function encrypt(text, key) {
-      const encoder = new TextEncoder();
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const data = encoder.encode(text);
-      const encrypted = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv }, key, data
-      );
-      return JSON.stringify({
-        iv: Array.from(iv),
-        data: Array.from(new Uint8Array(encrypted))
-      });
-    }
-
-    async function decrypt(encryptedStr, key) {
+    async function openScanner() {
+      document.getElementById('scanModal').style.display = 'flex';
+      if (qrScanner) return;
+      qrScanner = new Html5Qrcode("qr-scanner");
       try {
-        const ciphertext = JSON.parse(encryptedStr);
-        const decoder = new TextDecoder();
-        const iv = new Uint8Array(ciphertext.iv);
-        const encryptedData = new Uint8Array(ciphertext.data);
-        const decrypted = await window.crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv }, key, encryptedData
-        );
-        return decoder.decode(decrypted);
-      } catch {
-        return '[🔒 Unable to decrypt]';
-      }
-    }
-
-    async function ensureChatDoc() {
-      const chatRef = db.collection('chats').doc(chatId);
-      const doc = await chatRef.get();
-      const baseData = {
-        participants: [userUID, selectedFriend.id],
-        otherName: selectedFriend.name || selectedFriend.username || selectedFriend.phone || '',
-        otherUsername: selectedFriend.username || '',
-        otherPhone: selectedFriend.phone || '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      if (!doc.exists) {
-        await chatRef.set(baseData, { merge: true });
-      } else if (!doc.data().participants) {
-        await chatRef.set({ participants: [userUID, selectedFriend.id] }, { merge: true });
-      } else {
-        await chatRef.set(baseData, { merge: true });
-      }
-    }
-
-    function scrollMessagesToBottom() {
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    function loadMessages() {
-      db.collection('chats').doc(chatId).collection('messages')
-        .orderBy('createdAt', 'asc')
-        .onSnapshot(async (snapshot) => {
-          messagesEl.innerHTML = '';
-          if (snapshot.empty) {
-            messagesEl.innerHTML = `
-              <div class="no-chat">
-                <div style="font-size:32px;">🔒</div>
-                <div>Start the conversation!</div>
-              </div>`;
-            return;
-          }
-          const now = Date.now();
-          for (let doc of snapshot.docs) {
-            const msg = doc.data();
-            const isMedia = !!msg.mediaUrl;
-            let displayText = msg.text;
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message ' + (msg.senderId === userUID ? 'me' : 'friend');
-
-            let contentHtml = '';
-
-            // Video-call link branch with expiry (10 min)
-            if (!isMedia && msg.videoRoomId) {
-              const roomId = msg.videoRoomId;
-              const expiresAt = msg.expiresAt || 0;
-              const expired = expiresAt && now > expiresAt;
-
-              if (expired) {
-                // Hide expired link completely
-                continue;
-              } else {
-                contentHtml = `<span class="video-call-link" data-room="${roomId}">
-                  Join video call (expires in 10 min)
-                </span>`;
+        await qrScanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 220 },
+          async (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              if (!data.uid) return;
+              const friendDoc = await db.collection('users').doc(data.uid).get();
+              if (!friendDoc.exists) {
+                alert('User not found for this QR.');
+                return;
               }
-            } else {
-              // Normal message or media
-              if (msg.encrypted && chatKey && !isMedia && msg.text) {
-                displayText = await decrypt(msg.text, chatKey);
-              }
+              const friend = { id: friendDoc.id, ...friendDoc.data() };
 
-              if (isMedia) {
-                if (msg.mediaType === 'image') {
-                  contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
-                } else if (msg.mediaType === 'video') {
-                  contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
-                } else {
-                  contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
-                }
-              } else if (displayText) {
-                contentHtml = escapeHtml(displayText);
-              }
+              await closeScanner();
+              openQrFriendModal(friend, friendDoc.id);
+            } catch (e) {
+              console.error(e);
+              alert('Failed to handle QR.');
             }
-
-            const timeStr = msg.createdAt
-              ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
-              : 'Pending';
-
-            msgDiv.innerHTML = `
-              <div>
-                <div class="message-bubble">${contentHtml}</div>
-                <div class="message-time">${timeStr}</div>
-              </div>
-            `;
-            messagesEl.appendChild(msgDiv);
-          }
-
-          messagesEl.querySelectorAll('.video-call-link').forEach(el => {
-            el.onclick = () => {
-              const roomId = el.getAttribute('data-room');
-              if (roomId) {
-                joinCallRoom(roomId);
-              }
-            };
-          });
-
-          scrollMessagesToBottom();
-        }, (error) => {
-          console.error('Messages error:', error);
-          messagesEl.innerHTML =
-            '<div class="no-chat">❌ Error loading messages</div>';
-        });
-    }
-
-    async function initChat() {
-      try {
-        messagesEl.innerHTML =
-          '<div class="no-chat loading">Connecting to secure chat...</div>';
-        chatId = [userUID, selectedFriend.id].sort().join('_');
-        console.log('Computed chatId =', chatId);
-        chatKey = await getChatKey(userUID, selectedFriend.id);
-        await ensureChatDoc();
-
-        // Mark all existing messages as seen for this user (for unread badge logic)
-        await db.collection('chats').doc(chatId).set({
-          lastSeen: {
-            [userUID]: firebase.firestore.FieldValue.serverTimestamp()
-          }
-        }, { merge: true });
-
-        inputEl.disabled = false;
-        sendBtn.disabled = false;
-
-        inputEl.addEventListener('input', function() {
-          this.style.height = 'auto';
-          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-
-        inputEl.addEventListener('focus', () => {
-          setTimeout(scrollMessagesToBottom, 200);
-        });
-
-        loadMessages();
+          },
+          (errorMsg) => {}
+        );
       } catch (e) {
-        console.error('Chat init error:', e);
-        messagesEl.innerHTML =
-          '<div class="no-chat">❌ Chat connection failed</div>';
+        console.error(e);
+        alert('Camera permission denied or scanner error.');
       }
     }
 
-    sendBtn.onclick = async function() {
-      let text = inputEl.value;
-      text = text.replace(/\s*\n\s*/g, ' ').trim();
-      if (!text || !chatKey) return;
-      this.disabled = true;
-      try {
-        const encryptedText = await encrypt(text, chatKey);
-        const msgRef = db.collection('chats').doc(chatId).collection('messages');
-        await msgRef.add({
-          senderId: userUID,
-          text: encryptedText,
-          encrypted: true,
-          mediaUrl: null,
-          mediaType: null,
-          videoRoomId: null,
-          expiresAt: null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        await db.collection('chats').doc(chatId).set({
-          lastMessageText: text,
-          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastSenderId: userUID
-        }, { merge: true });
-
-        inputEl.value = '';
-        inputEl.style.height = '40px';
-        scrollMessagesToBottom();
-      } catch (e) {
-        console.error('Send text error:', e);
-        alert('Failed to send message');
-      } finally {
-        this.disabled = false;
+    async function closeScanner() {
+      document.getElementById('scanModal').style.display = 'none';
+      if (qrScanner) {
+        try { await qrScanner.stop(); } catch {}
+        try { await qrScanner.clear(); } catch {}
+        qrScanner = null;
       }
-    };
-
-    inputEl.onkeypress = function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
-      }
-    };
-
-    attachBtn.onclick = () => {
-      if (!chatId) {
-        console.warn('No chatId yet, cannot attach');
-        return;
-      }
-      mediaInput.click();
-    };
-
-    mediaInput.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file || !chatId) return;
-
-      try {
-        if (file.size > 20 * 1024 * 1024) {
-          alert('File is too large (max 20MB).');
-          mediaInput.value = '';
-          return;
-        }
-
-        console.log('Uploading file:', {
-          name: file.name,
-          type: file.type,
-          size: file.size
-        });
-
-        const fileName = Date.now() + '_' + file.name;
-        const ref = storage.ref().child(`chatMedia/${chatId}/${fileName}`);
-        console.log('Storage path:', ref.fullPath);
-
-        const snapshot = await ref.put(file);
-        console.log('Upload completed, snapshot:', snapshot);
-
-        const url = await snapshot.ref.getDownloadURL();
-        console.log('Download URL:', url);
-
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-
-        const msgRef = db.collection('chats').doc(chatId).collection('messages');
-        await msgRef.add({
-          senderId: userUID,
-          text: '',
-          encrypted: false,
-          mediaUrl: url,
-          mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
-          videoRoomId: null,
-          expiresAt: null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        console.log('Media message saved in Firestore');
-
-        await db.collection('chats').doc(chatId).set({
-          lastMessageText: isImage ? '[Photo]' : (isVideo ? '[Video]' : '[File]'),
-          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastSenderId: userUID
-        }, { merge: true });
-
-        mediaInput.value = '';
-        scrollMessagesToBottom();
-      } catch (err) {
-        console.error('Upload media error:', err);
-        alert('Failed to send media: ' + err.message);
-      }
-    };
-
-    // ---------- VIDEO CALL via INVITE LINK with EXPIRY ----------
-
-    const videoBtn = document.getElementById('videoBtn');
-    const videoOverlay = document.getElementById('videoOverlay');
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const callLabel = document.getElementById('callLabel');
-    const callStatus = document.getElementById('callStatus');
-    const toggleMicBtn = document.getElementById('toggleMicBtn');
-    const toggleCamBtn = document.getElementById('toggleCamBtn');
-    const hangupBtn = document.getElementById('hangupBtn');
-
-    let pc = null;
-    let localStream = null;
-    let remoteStream = null;
-    let roomRef = null;
-    let caller = false;
-    let micEnabled = true;
-    let camEnabled = true;
-
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]
-    };
-
-    async function startLocalMedia() {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = localStream;
-      remoteStream = new MediaStream();
-      remoteVideo.srcObject = remoteStream;
     }
 
-    async function createPeerConnection() {
-      pc = new RTCPeerConnection(rtcConfig);
-
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-      pc.ontrack = (event) => {
-        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+    function setAddStatus(msg, type) {
+      const colors = {
+        success: '#00a884',
+        error: '#ff6b6b',
+        info: '#8696a0',
+        warning: '#f4b400'
       };
-
-      pc.onicecandidate = async (event) => {
-        if (!event.candidate || !roomRef) return;
-        const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
-        await candidatesCol.add(event.candidate.toJSON());
-      };
+      addStatusEl.style.color = colors[type] || '#8696a0';
+      addStatusEl.innerHTML = msg;
     }
 
-    async function createRoomAndSendLink() {
-      const roomId = chatId + '_' + Date.now();
-      roomRef = db.collection('rooms').doc(roomId);
-      await roomRef.set({
-        chatId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy: userUID
-      });
+    async function addFriendRelation(friend, friendId) {
+      const myUid = currentUserUID;
+      const myDoc = currentUserData;
+      const batch = db.batch();
+      const now = firebase.firestore.FieldValue.serverTimestamp();
 
-      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      const myFriendRef = db.collection('users').doc(myUid)
+        .collection('friends').doc(friendId);
+      const theirFriendRef = db.collection('users').doc(friendId)
+        .collection('friends').doc(myUid);
 
-      const msgRef = db.collection('chats').doc(chatId).collection('messages');
-      await msgRef.add({
-        senderId: userUID,
-        text: '',
-        encrypted: false,
-        mediaUrl: null,
-        mediaType: null,
-        videoRoomId: roomId,
-        expiresAt,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      await db.collection('chats').doc(chatId).set({
-        lastMessageText: '[Video call link]',
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastSenderId: userUID
+      batch.set(myFriendRef, {
+        friendUid: friendId,
+        friendName: friend.name || friend.username || friend.phone || friend.email,
+        friendUsername: friend.username || '',
+        friendPhone: friend.phone || '',
+        friendPhoto: friend.photo || '',
+        createdAt: now
       }, { merge: true });
 
-      await joinCallRoom(roomId, true);
+      batch.set(theirFriendRef, {
+        friendUid: myUid,
+        friendName: myDoc.name || myDoc.username || myDoc.phone || myDoc.email,
+        friendUsername: myDoc.username || '',
+        friendPhone: myDoc.phone || '',
+        friendPhoto: myDoc.photo || '',
+        createdAt: now
+      }, { merge: true });
+
+      await batch.commit();
+
+      const chatId = [myUid, friendId].sort().join('_');
+      const chatRef = db.collection('chats').doc(chatId);
+      await chatRef.set({
+        participants: [myUid, friendId],
+        createdAt: now
+      }, { merge: true });
     }
 
-    async function joinCallRoom(roomId, isCaller = false) {
+    async function sendFriendRequestTo(friend, friendId) {
+      const now = firebase.firestore.FieldValue.serverTimestamp();
+      const reqRef = db.collection('friend_requests').doc();
+      await reqRef.set({
+        fromUid: currentUserUID,
+        fromName: currentUserData.name || currentUserData.username || currentUserData.phone || currentUserData.email,
+        fromUsername: currentUserData.username || '',
+        fromPhone: currentUserData.phone || '',
+        toUid: friendId,
+        toName: friend.name || friend.username || friend.phone || friend.email,
+        toUsername: friend.username || '',
+        toPhone: friend.phone || '',
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now
+      });
+      return reqRef.id;
+    }
+
+    function startChat(friend, friendId) {
+      localStorage.setItem('selectedFriend', JSON.stringify({
+        id: friendId,
+        name: friend.name || friend.friendName || friend.username || friend.friendUsername || friend.phone,
+        username: friend.username || friend.friendUsername || '',
+        phone: friend.phone || friend.friendPhone || ''
+      }));
+      window.location.href = 'chat.html';
+    }
+
+    function renderSelfProfile() {
+      const name = currentUserData.name || currentUserData.username || currentUserData.email;
+      const username = currentUserData.username || '';
+      const phone = currentUserData.phone || '';
+      const photo = currentUserData.photo || '';
+
+      const meNameEl = document.getElementById('meName');
+      const meMetaEl = document.getElementById('meMeta');
+      const meAvatarEl = document.getElementById('meAvatar');
+      const profileNameEl = document.getElementById('profileName');
+      const profileMetaEl = document.getElementById('profileMeta');
+      const profileAvatarEl = document.getElementById('profileAvatar');
+
+      meNameEl.textContent = name;
+      meMetaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      profileNameEl.textContent = name;
+      profileMetaEl.textContent = meMetaEl.textContent;
+
+      const initial = (name && name[0]) ? name[0].toUpperCase() : 'U';
+      if (photo) {
+        meAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+        profileAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        meAvatarEl.textContent = initial;
+        profileAvatarEl.textContent = initial;
+      }
+
+      const qrValue = JSON.stringify({
+        uid: currentUserUID,
+        username,
+        phone
+      });
+      new QRious({
+        element: document.getElementById('qrCanvas'),
+        value: qrValue,
+        size: 160,
+        level: 'H'
+      });
+    }
+
+    // FIXED: build array + Promise.all, then render once, then attach unread listeners
+    async function renderChats(snapshot) {
+      chatListEl.innerHTML = '<div class="status"><strong>Loading chats...</strong></div>';
+
+      if (snapshot.empty) {
+        chatListEl.innerHTML = '<div class="status">No chats yet. Add friend above or scan QR.</div>';
+        return;
+      }
+
+      const chatDocs = snapshot.docs;
+      const chatItems = [];
+
+      await Promise.all(chatDocs.map(async (docSnap) => {
+        const chat = docSnap.data();
+        const chatId = docSnap.id;
+        const otherId = chat.participants && chat.participants.find(p => p !== currentUserUID);
+        if (!otherId) return;
+
+        const otherDoc = await db.collection('users').doc(otherId).get();
+        if (!otherDoc.exists) return;
+        const other = otherDoc.data();
+
+        chatItems.push({
+          chat,
+          chatId,
+          otherId,
+          other
+        });
+      }));
+
+      // Sort by lastMessageAt desc (nulls last)
+      chatItems.sort((a, b) => {
+        const ta = a.chat.lastMessageAt ? a.chat.lastMessageAt.toMillis() : 0;
+        const tb = b.chat.lastMessageAt ? b.chat.lastMessageAt.toMillis() : 0;
+        return tb - ta;
+      });
+
+      chatListEl.innerHTML = '';
+
+      chatItems.forEach(item => {
+        const { chat, chatId, otherId, other } = item;
+        const row = document.createElement('div');
+        row.className = 'chat-row';
+
+        const name = other.name || other.username || other.phone || other.email || 'Chat';
+        const avatarInitial = name[0] ? name[0].toUpperCase() : 'C';
+        const avatarHtml = other.photo
+          ? `<img src="${other.photo}" alt="avatar">`
+          : avatarInitial;
+
+        const lastText = chat.lastMessageText || 'Say hi 👋';
+        const timeStr = chat.lastMessageAt
+          ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+          : '';
+
+        row.innerHTML = `
+          <div class="chat-avatar">${avatarHtml}</div>
+          <div class="chat-main">
+            <div class="chat-top">
+              <div class="chat-name">${name}</div>
+              <div class="chat-time">${timeStr}</div>
+            </div>
+            <div class="chat-last">${lastText}</div>
+          </div>
+          <div class="chat-right">
+            <div class="unread-badge" style="display:none;"></div>
+          </div>
+        `;
+
+        const unreadBadge = row.querySelector('.unread-badge');
+
+        const lastSeenTs = chat.lastSeen && chat.lastSeen[currentUserUID]
+          ? chat.lastSeen[currentUserUID].toDate()
+          : new Date(0);
+
+        // Per‑chat unread listener
+        db.collection('chats').doc(chatId).collection('messages')
+          .where('createdAt', '>', lastSeenTs)
+          .onSnapshot((msgSnap) => {
+            const unread = msgSnap.size;
+            if (unread > 0) {
+              unreadBadge.style.display = 'inline-block';
+              unreadBadge.textContent = unread > 99 ? '99+' : unread;
+            } else {
+              unreadBadge.style.display = 'none';
+            }
+          });
+
+        row.onclick = () => {
+          const friendData = {
+            id: otherId,
+            name,
+            username: other.username || '',
+            phone: other.phone || ''
+          };
+          startChat(friendData, otherId);
+        };
+
+        chatListEl.appendChild(row);
+      });
+    }
+
+    function openQrFriendModal(friend, friendId) {
+      qrScannedFriend = friend;
+      qrScannedFriendId = friendId;
+
+      const name = friend.name || friend.username || friend.phone || 'Unknown';
+      const username = friend.username || '';
+      const phone = friend.phone || '';
+      const photo = friend.photo || '';
+
+      const avatarEl = document.getElementById('qrFriendAvatar');
+      const nameEl = document.getElementById('qrFriendName');
+      const metaEl = document.getElementById('qrFriendMeta');
+
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'F';
+      if (photo) {
+        avatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+      } else {
+        avatarEl.textContent = initial;
+      }
+
+      document.getElementById('qrFriendModal').style.display = 'flex';
+    }
+
+    function closeQrFriendModal() {
+      document.getElementById('qrFriendModal').style.display = 'none';
+      qrScannedFriend = null;
+      qrScannedFriendId = null;
+    }
+
+    async function rejectQrFriend() {
+      closeQrFriendModal();
+    }
+
+    async function acceptQrFriend() {
+      if (!qrScannedFriend || !qrScannedFriendId) return;
+      const btn = document.getElementById('acceptQrFriendBtn');
+      btn.disabled = true;
       try {
-        videoOverlay.style.display = 'flex';
-        callLabel.textContent =
-          'Video call with ' +
-          (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
-        callStatus.textContent = 'Connecting...';
+        await sendFriendRequestTo(qrScannedFriend, qrScannedFriendId);
+        closeQrFriendModal();
+        alert('Request sent. Waiting for them to accept.');
+      } catch (e) {
+        console.error('Accept QR friend error:', e);
+        alert('Failed to send request: ' + e.message);
+        btn.disabled = false;
+      }
+    }
 
-        await startLocalMedia();
-        await createPeerConnection();
+    function openIncomingReqModal(req, showModal = true) {
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Unknown';
+      const username = data.fromUsername || '';
+      const phone = data.fromPhone || '';
 
-        caller = isCaller;
-        roomRef = db.collection('rooms').doc(roomId);
+      const avatarEl = document.getElementById('incomingReqAvatar');
+      const nameEl = document.getElementById('incomingReqName');
+      const metaEl = document.getElementById('incomingReqMeta');
 
-        const roomSnapshot = await roomRef.get();
-        if (!roomSnapshot.exists && isCaller) {
-          await roomRef.set({
-            chatId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: userUID
-          }, { merge: true });
-        }
+      nameEl.textContent = name;
+      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      const initial = name[0] ? name[0].toUpperCase() : 'U';
+      avatarEl.textContent = initial;
 
-        if (isCaller) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await roomRef.set({
-            chatId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: userUID,
-            offer: {
-              type: offer.type,
-              sdp: offer.sdp
-            }
-          }, { merge: true });
+      if (showModal) {
+        document.getElementById('incomingReqModal').style.display = 'flex';
+      }
+    }
 
-          roomRef.onSnapshot(async (snapshot) => {
-            const data = snapshot.data();
-            if (!pc.currentRemoteDescription && data && data.answer) {
-              const answerDesc = new RTCSessionDescription(data.answer);
-              await pc.setRemoteDescription(answerDesc);
-              callStatus.textContent = 'Connected';
-            }
-          });
+    function closeIncomingReqModal() {
+      document.getElementById('incomingReqModal').style.display = 'none';
+      incomingReq = null;
+    }
 
-        } else {
-          const snap = await roomRef.get();
-          if (!snap.exists || !snap.data().offer) {
-            alert('Call not ready yet. Ask your friend to create link again.');
-            endCall();
-            return;
-          }
-          const offer = snap.data().offer;
-          await pc.setRemoteDescription(new RTCSessionDescription(offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await roomRef.set({
-            answer: {
-              type: answer.type,
-              sdp: answer.sdp
-            }
-          }, { merge: true });
+    async function rejectIncomingReq() {
+      if (!incomingReq) return;
+      try {
+        await incomingReq.ref.update({
+          status: 'rejected',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Reject req error:', e);
+      }
+      closeIncomingReqModal();
+    }
 
-          roomRef.onSnapshot(s => {
-            const d = s.data();
-            if (d && d.answer) {
-              callStatus.textContent = 'Connected';
-            }
-          });
-        }
-
-        const otherCandidatesCol = roomRef.collection(isCaller ? 'calleeCandidates' : 'callerCandidates');
-        otherCandidatesCol.onSnapshot(snapshot => {
-          snapshot.docChanges().forEach(change => {
-            if (change.type === 'added') {
-              const candidate = new RTCIceCandidate(change.doc.data());
-              pc.addIceCandidate(candidate);
-            }
-          });
+    async function acceptIncomingReq() {
+      if (!incomingReq) return;
+      const data = incomingReq.data();
+      const otherId = data.fromUid;
+      const friendInfo = {
+        id: otherId,
+        name: data.fromName,
+        username: data.fromUsername,
+        phone: data.fromPhone
+      };
+      try {
+        await incomingReq.ref.update({
+          status: 'accepted',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        await addFriendRelation(friendInfo, otherId);
+
+        closeIncomingReqModal();
+        startChat(friendInfo, otherId);
       } catch (e) {
-        console.error('Join call room error:', e);
-        alert('Unable to start/join video call.');
-        endCall();
+        console.error('Accept req error:', e);
+        alert('Failed to accept request: ' + e.message);
       }
     }
 
-    async function endCall() {
-      videoOverlay.style.display = 'none';
-      callStatus.textContent = 'Disconnected';
+    function updateRequestUI(snapshot) {
+      pendingReqCount = snapshot.size;
 
-      if (pc) {
-        pc.getSenders().forEach(sender => sender.track && sender.track.stop());
-        pc.close();
-        pc = null;
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-      }
-      if (remoteStream) {
-        remoteStream.getTracks().forEach(t => t.stop());
-        remoteStream = null;
+      if (pendingReqCount > 0) {
+        requestBadgeEl.style.display = 'inline-block';
+        requestBadgeEl.textContent = pendingReqCount > 9 ? '9+' : String(pendingReqCount);
+      } else {
+        requestBadgeEl.style.display = 'none';
       }
 
-      if (roomRef && caller) {
-        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-        calleeCandidates.forEach(doc => doc.ref.delete());
-        const callerCandidates = await roomRef.collection('callerCandidates').get();
-        callerCandidates.forEach(doc => doc.ref.delete());
-        await roomRef.delete();
+      if (pendingReqCount === 0) {
+        incomingReq = null;
+        requestBarEl.style.display = 'none';
+        document.getElementById('incomingReqModal').style.display = 'none';
+        return;
       }
-      roomRef = null;
-      caller = false;
-      micEnabled = true;
-      camEnabled = true;
+
+      const req = snapshot.docs[0];
+      incomingReq = req;
+      const data = req.data();
+      const name = data.fromName || data.fromUsername || data.fromPhone || 'Someone';
+      requestBarTextEl.textContent = name + ' wants to start a chat.';
+
+      requestBarEl.style.display = 'flex';
+      openIncomingReqModal(req, false);
     }
 
-    videoBtn.onclick = () => {
-      if (!chatId) return;
-      createRoomAndSendLink();
+    async function initChats(user) {
+      currentUserUID = user.uid;
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (!userDoc.exists || !userDoc.data().username || !userDoc.data().phone) {
+        window.location.href = 'setup.html';
+        return;
+      }
+      currentUserData = userDoc.data();
+      renderSelfProfile();
+
+      // NOTE: remove orderBy here; we sort in JS so chats without lastMessageAt still appear [web:108][web:110]
+      db.collection('chats')
+        .where('participants', 'array-contains', currentUserUID)
+        .onSnapshot(renderChats, (error) => {
+          console.error(error);
+          chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
+        });
+
+      db.collection('friend_requests')
+        .where('toUid', '==', currentUserUID)
+        .where('status', '==', 'pending')
+        .onSnapshot((snapshot) => {
+          updateRequestUI(snapshot);
+        }, (error) => {
+          console.error('Incoming req error:', error);
+        });
+    }
+
+    addFriendBtn.onclick = async () => {
+      const query = document.getElementById('friendQuery').value.trim();
+      if (!query) {
+        setAddStatus('Enter username or mobile number.', 'warning');
+        return;
+      }
+      addFriendBtn.disabled = true;
+      setAddStatus('Searching...', 'info');
+      try {
+        let snapshot;
+        if (/^\d+$/.test(query)) {
+          snapshot = await db.collection('users')
+            .where('phone', '==', query).limit(1).get();
+        } else {
+          snapshot = await db.collection('users')
+            .where('username', '==', query.toLowerCase()).limit(1).get();
+        }
+        if (snapshot.empty) {
+          setAddStatus(`No user found for <strong>${query}</strong>.`, 'info');
+          addFriendBtn.disabled = false;
+          return;
+        }
+        const friendDoc = snapshot.docs[0];
+        if (friendDoc.id === currentUserUID) {
+          setAddStatus('You cannot add yourself.', 'warning');
+          addFriendBtn.disabled = false;
+          return;
+        }
+        const friend = { id: friendDoc.id, ...friendDoc.data() };
+        await sendFriendRequestTo(friend, friendDoc.id);
+        setAddStatus('Request sent. They need to accept.', 'success');
+      } catch (e) {
+        console.error('Add friend error:', e);
+        setAddStatus('Error: ' + e.message, 'error');
+      } finally {
+        addFriendBtn.disabled = false;
+      }
     };
 
-    hangupBtn.onclick = () => {
-      endCall();
-    };
+    document.getElementById('profileBtn').onclick = openProfile;
+    document.getElementById('scanBtn').onclick = openScanner;
 
-    toggleMicBtn.onclick = () => {
-      if (!localStream) return;
-      micEnabled = !micEnabled;
-      localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
-      toggleMicBtn.textContent = micEnabled ? '🎙️' : '🔇';
-    };
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn1 = document.getElementById('acceptQrFriendBtn');
+      if (btn1) btn1.onclick = acceptQrFriend;
+      const btn2 = document.getElementById('acceptIncomingReqBtn');
+      if (btn2) btn2.onclick = acceptIncomingReq;
 
-    toggleCamBtn.onclick = () => {
-      if (!localStream) return;
-      camEnabled = !camEnabled;
-      localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
-      toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
-    };
+      const barAccept = document.getElementById('requestAcceptBtn');
+      const barReject = document.getElementById('requestRejectBtn');
+      if (barAccept) barAccept.onclick = acceptIncomingReq;
+      if (barReject) barReject.onclick = rejectIncomingReq;
+
+      requestBadgeEl.onclick = () => {
+        if (incomingReq) openIncomingReqModal(incomingReq, true);
+      };
+    });
 
     auth.onAuthStateChanged((user) => {
       if (!user) {
         window.location.href = 'index.html';
         return;
       }
-      userUID = user.uid;
-      const friendStr = localStorage.getItem('selectedFriend');
-      if (!friendStr) {
-        window.location.href = 'chats.html';
-        return;
-      }
-      selectedFriend = JSON.parse(friendStr);
-      const title =
-        selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
-      document.getElementById('chatTitle').textContent = title;
-      initChat();
+      initChats(user);
     });
   </script>
 </body>
