@@ -72,9 +72,24 @@
       max-width: 200px;
     }
     .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .icon-btn {
       width: 32px;
       height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #2a3942;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e9edef;
+      cursor: pointer;
+      font-size: 16px;
     }
+    .icon-btn:hover { background: #374652; }
 
     .main-chat {
       position: fixed;
@@ -161,20 +176,6 @@
       outline: none;
       box-shadow: 0 0 0 2px rgba(0,168,132,0.3);
     }
-    .icon-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: none;
-      background: #2a3942;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #e9edef;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    .icon-btn:hover { background: #374652; }
     .send-btn {
       width: 40px;
       height: 40px;
@@ -217,6 +218,76 @@
       display: block;
       background: #000;
     }
+
+    .video-call-link {
+      color: #c1d7ff;
+      text-decoration: underline;
+      cursor: pointer;
+      word-break: break-all;
+    }
+
+    /* Video overlay */
+    .video-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      z-index: 200;
+    }
+    .video-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      color: #e9edef;
+      font-size: 14px;
+    }
+    .video-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: #000;
+    }
+    video { background: #000; }
+    #remoteVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #localVideo {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.7);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    }
+    .video-controls {
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    .video-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #fff;
+    }
+    .video-btn.end { background: #ff4b4b; }
+    .video-btn.reg { background: #2a3942; }
   </style>
 </head>
 <body>
@@ -224,9 +295,11 @@
     <button class="back-btn" onclick="handleBack()">←</button>
     <div class="chat-header">
       <div class="chat-title" id="chatTitle">Loading chat...</div>
-      <div class="e2ee-status">🔒 Messages are end-to-end encrypted</div>
+      <div class="e2ee-status">🔒 Messages & video are end-to-end encrypted</div>
     </div>
-    <div class="nav-actions"></div>
+    <div class="nav-actions">
+      <button class="icon-btn" id="videoBtn" title="Video call">📹</button>
+    </div>
   </div>
 
   <div class="main-chat">
@@ -243,6 +316,23 @@
     <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;">
     <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
     <button id="sendBtn" class="send-btn" disabled>➤</button>
+  </div>
+
+  <!-- Video call overlay -->
+  <div class="video-overlay" id="videoOverlay">
+    <div class="video-top">
+      <span id="callLabel">Video call</span>
+      <span id="callStatus">Connecting...</span>
+    </div>
+    <div class="video-main">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+    <div class="video-controls">
+      <button class="video-btn reg" id="toggleMicBtn">🎙️</button>
+      <button class="video-btn reg" id="toggleCamBtn">📷</button>
+      <button class="video-btn end" id="hangupBtn">✖</button>
+    </div>
   </div>
 
   <script>
@@ -280,7 +370,7 @@
       return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    // ---------- E2EE helpers ----------
+    // ---------- E2EE ----------
     async function getChatKey(uid1, uid2) {
       const combined = [uid1, uid2].sort().join(':');
       const encoder = new TextEncoder();
@@ -323,7 +413,6 @@
     // ---------- Chat doc + lastSeen ----------
     async function ensureChatDoc() {
       const chatRef = db.collection('chats').doc(chatId);
-      const doc = await chatRef.get();
       const baseData = {
         participants: [userUID, selectedFriend.id],
         otherName: selectedFriend.name || selectedFriend.username || selectedFriend.phone || '',
@@ -331,11 +420,7 @@
         otherPhone: selectedFriend.phone || '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      if (!doc.exists) {
-        await chatRef.set(baseData, { merge: true });
-      } else {
-        await chatRef.set(baseData, { merge: true });
-      }
+      await chatRef.set(baseData, { merge: true });
     }
 
     async function updateLastSeen() {
@@ -375,6 +460,8 @@
             return;
           }
 
+          const now = Date.now();
+
           for (const doc of snapshot.docs) {
             const msg = doc.data();
             const isMedia = !!msg.mediaUrl;
@@ -385,22 +472,35 @@
 
             let contentHtml = '';
 
-            if (msg.encrypted && chatKey && !isMedia && msg.text) {
-              displayText = await decrypt(msg.text, chatKey);
-            }
+            // Video-call message link
+            if (!isMedia && msg.videoRoomId) {
+              const roomId = msg.videoRoomId;
+              const expiresAt = msg.expiresAt || 0;
+              const expired = expiresAt && now > expiresAt;
 
-            if (isMedia) {
-              if (msg.mediaType === 'image') {
-                contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
-              } else if (msg.mediaType === 'video') {
-                contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
+              if (expired) {
+                continue;
               } else {
-                contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
+                contentHtml = `<span class="video-call-link" data-room="${roomId}">
+                  Join video call (valid 10 min)
+                </span>`;
               }
-            } else if (displayText) {
-              contentHtml = escapeHtml(displayText);
             } else {
-              contentHtml = '';
+              if (msg.encrypted && chatKey && !isMedia && msg.text) {
+                displayText = await decrypt(msg.text, chatKey);
+              }
+
+              if (isMedia) {
+                if (msg.mediaType === 'image') {
+                  contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
+                } else if (msg.mediaType === 'video') {
+                  contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
+                } else {
+                  contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
+                }
+              } else if (displayText) {
+                contentHtml = escapeHtml(displayText);
+              }
             }
 
             const timeStr = msg.createdAt
@@ -419,6 +519,14 @@
             messagesEl.appendChild(msgDiv);
           }
 
+          // Wire up video call links
+          messagesEl.querySelectorAll('.video-call-link').forEach(el => {
+            el.onclick = () => {
+              const roomId = el.getAttribute('data-room');
+              if (roomId) joinCallRoom(roomId, false);
+            };
+          });
+
           scrollMessagesToBottom();
         }, (error) => {
           console.error('Messages error:', error);
@@ -436,8 +544,6 @@
         chatId = [userUID, selectedFriend.id].sort().join('_');
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
-
-        // mark existing messages as seen on open
         await updateLastSeen();
 
         inputEl.disabled = false;
@@ -461,7 +567,7 @@
     }
 
     async function handleBack() {
-      await updateLastSeen(); // ensure unread clears
+      await updateLastSeen();
       window.location.href = 'chats.html';
     }
 
@@ -480,6 +586,8 @@
           encrypted: true,
           mediaUrl: null,
           mediaType: null,
+          videoRoomId: null,
+          expiresAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -542,6 +650,8 @@
           encrypted: false,
           mediaUrl: url,
           mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
+          videoRoomId: null,
+          expiresAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -559,12 +669,240 @@
       }
     };
 
-    // When leaving tab, also mark seen
+    // Mark as seen when tab is hidden
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         updateLastSeen();
       }
     });
+
+    // ---------- VIDEO CALL (WebRTC + Firestore rooms) ----------
+    const videoBtn = document.getElementById('videoBtn');
+    const videoOverlay = document.getElementById('videoOverlay');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const callLabel = document.getElementById('callLabel');
+    const callStatus = document.getElementById('callStatus');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
+
+    let pc = null;
+    let localStream = null;
+    let remoteStream = null;
+    let roomRef = null;
+    let caller = false;
+    let micEnabled = true;
+    let camEnabled = true;
+    let unsubscribeCandidates = null;
+
+    async function startLocalMedia() {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+      remoteStream = new MediaStream();
+      remoteVideo.srcObject = remoteStream;
+    }
+
+    async function createPeerConnection() {
+      pc = new RTCPeerConnection(rtcConfig);
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.ontrack = (event) => {
+        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+      };
+
+      pc.onicecandidate = async (event) => {
+        if (!event.candidate || !roomRef) return;
+        const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
+        await candidatesCol.add(event.candidate.toJSON());
+      };
+    }
+
+    async function createRoomAndSendLink() {
+      const roomId = chatId + '_' + Date.now();
+      roomRef = db.collection('rooms').doc(roomId);
+      await roomRef.set({
+        chatId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy: userUID
+      });
+
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+
+      const msgRef = db.collection('chats').doc(chatId).collection('messages');
+      await msgRef.add({
+        senderId: userUID,
+        text: '',
+        encrypted: false,
+        mediaUrl: null,
+        mediaType: null,
+        videoRoomId: roomId,
+        expiresAt,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      await db.collection('chats').doc(chatId).set({
+        lastMessageText: '[Video call link]',
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderId: userUID
+      }, { merge: true });
+
+      await joinCallRoom(roomId, true);
+    }
+
+    async function joinCallRoom(roomId, isCaller = false) {
+      try {
+        videoOverlay.style.display = 'flex';
+        callLabel.textContent =
+          'Video call with ' +
+          (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
+        callStatus.textContent = 'Connecting...';
+
+        await startLocalMedia();
+        await createPeerConnection();
+
+        caller = isCaller;
+        roomRef = db.collection('rooms').doc(roomId);
+
+        const roomSnapshot = await roomRef.get();
+        if (!roomSnapshot.exists && isCaller) {
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID
+          }, { merge: true });
+        }
+
+        if (isCaller) {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID,
+            offer: {
+              type: offer.type,
+              sdp: offer.sdp
+            }
+          }, { merge: true });
+
+          roomRef.onSnapshot(async (snapshot) => {
+            const data = snapshot.data();
+            if (!pc.currentRemoteDescription && data && data.answer) {
+              const answerDesc = new RTCSessionDescription(data.answer);
+              await pc.setRemoteDescription(answerDesc);
+              callStatus.textContent = 'Connected';
+            }
+          });
+
+        } else {
+          const snap = await roomRef.get();
+          if (!snap.exists || !snap.data().offer) {
+            alert('Call not ready yet. Ask your friend to create link again.');
+            endCall();
+            return;
+          }
+          const offer = snap.data().offer;
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await roomRef.set({
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp
+            }
+          }, { merge: true });
+
+          roomRef.onSnapshot(s => {
+            const d = s.data();
+            if (d && d.answer) {
+              callStatus.textContent = 'Connected';
+            }
+          });
+        }
+
+        const otherCandidatesCol = roomRef.collection(isCaller ? 'calleeCandidates' : 'callerCandidates');
+        unsubscribeCandidates = otherCandidatesCol.onSnapshot(snapshot => {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+              const candidate = new RTCIceCandidate(change.doc.data());
+              pc.addIceCandidate(candidate);
+            }
+          });
+        });
+
+      } catch (e) {
+        console.error('Join call room error:', e);
+        alert('Unable to start/join video call.');
+        endCall();
+      }
+    }
+
+    async function endCall() {
+      videoOverlay.style.display = 'none';
+      callStatus.textContent = 'Disconnected';
+
+      if (unsubscribeCandidates) {
+        unsubscribeCandidates();
+        unsubscribeCandidates = null;
+      }
+
+      if (pc) {
+        pc.getSenders().forEach(sender => sender.track && sender.track.stop());
+        pc.close();
+        pc = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(t => t.stop());
+        remoteStream = null;
+      }
+
+      if (roomRef && caller) {
+        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
+        calleeCandidates.forEach(doc => doc.ref.delete());
+        const callerCandidates = await roomRef.collection('callerCandidates').get();
+        callerCandidates.forEach(doc => doc.ref.delete());
+        await roomRef.delete();
+      }
+      roomRef = null;
+      caller = false;
+      micEnabled = true;
+      camEnabled = true;
+    }
+
+    videoBtn.onclick = () => {
+      if (!chatId) return;
+      createRoomAndSendLink();
+    };
+
+    hangupBtn.onclick = () => {
+      endCall();
+    };
+
+    toggleMicBtn.onclick = () => {
+      if (!localStream) return;
+      micEnabled = !micEnabled;
+      localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+      toggleMicBtn.textContent = micEnabled ? '🎙️' : '🔇';
+    };
+
+    toggleCamBtn.onclick = () => {
+      if (!localStream) return;
+      camEnabled = !camEnabled;
+      localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+      toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
+    };
 
     // ---------- Auth + selected friend ----------
     auth.onAuthStateChanged((user) => {
