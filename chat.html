@@ -5,9 +5,11 @@
   <title>Secure Messenger - Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -190,6 +192,18 @@
     }
     .loading { color: #00a884; }
 
+    .media-img {
+      max-width: 220px;
+      border-radius: 10px;
+      display: block;
+    }
+    .media-video {
+      max-width: 220px;
+      border-radius: 10px;
+      display: block;
+      background: #000;
+    }
+
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -279,6 +293,9 @@
       </div>
     </div>
     <div class="input-area">
+      <!-- Attach button + hidden file input -->
+      <button class="icon-btn" id="attachBtn" title="Attach photo/video">📎</button>
+      <input type="file" id="mediaInput" accept="image/*,video/*" style="display:none;">
       <textarea id="messageInput" class="input" placeholder="Type a secure message" disabled></textarea>
       <button id="sendBtn" class="send-btn" disabled>➤</button>
     </div>
@@ -311,9 +328,12 @@
       measurementId: "G-Q3136YFH7C"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
     const auth = firebase.auth();
     const db = firebase.firestore();
+    const storage = firebase.storage();
 
     let userUID = null;
     let selectedFriend = null;
@@ -323,6 +343,8 @@
     const messagesEl = document.getElementById('messages');
     const inputEl = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
+    const mediaInput = document.getElementById('mediaInput');
+    const attachBtn = document.getElementById('attachBtn');
 
     function escapeHtml(text) {
       const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -388,11 +410,9 @@
     }
 
     function loadMessages() {
-      console.log('Listening to messages for chatId=', chatId);
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
         .onSnapshot(async (snapshot) => {
-          console.log('Snapshot size=', snapshot.size);
           messagesEl.innerHTML = '';
           if (snapshot.empty) {
             messagesEl.innerHTML = `
@@ -404,10 +424,13 @@
           }
           for (let doc of snapshot.docs) {
             const msg = doc.data();
+            const isMedia = !!msg.mediaUrl;
             let displayText = msg.text;
-            if (msg.encrypted && chatKey) {
+
+            if (msg.encrypted && chatKey && !isMedia && msg.text) {
               displayText = await decrypt(msg.text, chatKey);
             }
+
             const isMe = msg.senderId === userUID;
             const timeStr = msg.createdAt
               ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], {
@@ -415,11 +438,27 @@
                   minute: '2-digit'
                 })
               : 'Pending';
+
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message ' + (isMe ? 'me' : 'friend');
+
+            let contentHtml = '';
+
+            if (isMedia) {
+              if (msg.mediaType === 'image') {
+                contentHtml = `<img src="${msg.mediaUrl}" class="media-img" alt="photo">`;
+              } else if (msg.mediaType === 'video') {
+                contentHtml = `<video src="${msg.mediaUrl}" controls class="media-video"></video>`;
+              } else {
+                contentHtml = `<a href="${msg.mediaUrl}" target="_blank" style="color:#c1d7ff;">Download file</a>`;
+              }
+            } else if (displayText) {
+              contentHtml = escapeHtml(displayText);
+            }
+
             msgDiv.innerHTML = `
               <div>
-                <div class="message-bubble">${escapeHtml(displayText)}</div>
+                <div class="message-bubble">${contentHtml}</div>
                 <div class="message-time">${timeStr}</div>
               </div>
             `;
@@ -438,7 +477,6 @@
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
         chatId = [userUID, selectedFriend.id].sort().join('_');
-        console.log('Computed chatId=', chatId);
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
 
@@ -471,6 +509,8 @@
           senderId: userUID,
           text: encryptedText,
           encrypted: true,
+          mediaUrl: null,
+          mediaType: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -494,6 +534,55 @@
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendBtn.click();
+      }
+    };
+
+    attachBtn.onclick = () => {
+      if (!chatId) return;
+      mediaInput.click();
+    };
+
+    mediaInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file || !chatId) return;
+
+      try {
+        // Simple client-side limit: 20MB max
+        if (file.size > 20 * 1024 * 1024) {
+          alert('File is too large (max 20MB).');
+          mediaInput.value = '';
+          return;
+        }
+
+        const fileName = Date.now() + '_' + file.name;
+        const ref = storage.ref().child(`chatMedia/${chatId}/${fileName}`);
+
+        const snapshot = await ref.put(file);
+        const url = await snapshot.ref.getDownloadURL();
+
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+
+        const msgRef = db.collection('chats').doc(chatId).collection('messages');
+        await msgRef.add({
+          senderId: userUID,
+          text: '',
+          encrypted: false,
+          mediaUrl: url,
+          mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        await db.collection('chats').doc(chatId).set({
+          lastMessageText: isImage ? '[Photo]' : (isVideo ? '[Video]' : '[File]'),
+          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastSenderId: userUID
+        }, { merge: true });
+
+        mediaInput.value = '';
+      } catch (err) {
+        console.error('Upload media error:', err);
+        alert('Failed to send media: ' + err.message);
       }
     };
 
