@@ -226,7 +226,7 @@
       word-break: break-all;
     }
 
-    /* Video overlay */
+    /* Video/voice overlay */
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -295,9 +295,10 @@
     <button class="back-btn" onclick="handleBack()">←</button>
     <div class="chat-header">
       <div class="chat-title" id="chatTitle">Loading chat...</div>
-      <div class="e2ee-status">🔒 Messages & video are end-to-end encrypted</div>
+      <div class="e2ee-status">🔒 Messages & calls are encrypted</div>
     </div>
     <div class="nav-actions">
+      <button class="icon-btn" id="voiceBtn" title="Voice call">📞</button>
       <button class="icon-btn" id="videoBtn" title="Video call">📹</button>
     </div>
   </div>
@@ -318,10 +319,10 @@
     <button id="sendBtn" class="send-btn" disabled>➤</button>
   </div>
 
-  <!-- Video call overlay -->
+  <!-- Call overlay (used for video & voice; video preview hidden for voice) -->
   <div class="video-overlay" id="videoOverlay">
     <div class="video-top">
-      <span id="callLabel">Video call</span>
+      <span id="callLabel">Call</span>
       <span id="callStatus">Connecting...</span>
     </div>
     <div class="video-main">
@@ -364,13 +365,15 @@
     const sendBtn = document.getElementById('sendBtn');
     const mediaInput = document.getElementById('mediaInput');
     const attachBtn = document.getElementById('attachBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
+    const videoBtn = document.getElementById('videoBtn');
 
     function escapeHtml(text) {
       const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
       return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    // ---------- E2EE ----------
+    // ---------- E2EE for text ----------
     async function getChatKey(uid1, uid2) {
       const combined = [uid1, uid2].sort().join(':');
       const encoder = new TextEncoder();
@@ -410,7 +413,6 @@
       }
     }
 
-    // ---------- Chat doc + lastSeen ----------
     async function ensureChatDoc() {
       const chatRef = db.collection('chats').doc(chatId);
       const baseData = {
@@ -436,7 +438,6 @@
       }
     }
 
-    // ---------- UI helpers ----------
     function scrollMessagesToBottom() {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -449,7 +450,6 @@
         </div>`;
     }
 
-    // ---------- Load messages ----------
     function loadMessages() {
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
@@ -472,7 +472,6 @@
 
             let contentHtml = '';
 
-            // Video-call message link
             if (!isMedia && msg.videoRoomId) {
               const roomId = msg.videoRoomId;
               const expiresAt = msg.expiresAt || 0;
@@ -482,7 +481,7 @@
                 continue;
               } else {
                 contentHtml = `<span class="video-call-link" data-room="${roomId}">
-                  Join video call (valid 10 min)
+                  Join call (valid 10 min)
                 </span>`;
               }
             } else {
@@ -519,11 +518,20 @@
             messagesEl.appendChild(msgDiv);
           }
 
-          // Wire up video call links
+          // Join call links
           messagesEl.querySelectorAll('.video-call-link').forEach(el => {
-            el.onclick = () => {
+            el.onclick = async () => {
               const roomId = el.getAttribute('data-room');
-              if (roomId) joinCallRoom(roomId, false);
+              if (!roomId) return;
+              const roomDoc = await db.collection('rooms').doc(roomId).get();
+              const type = roomDoc.exists && roomDoc.data().type === 'audio' ? 'audio' : 'video';
+              if (type === 'audio') {
+                // For audio, better UX is to redirect to voice.html
+                localStorage.setItem('voiceRoomId', roomId);
+                window.location.href = 'voice.html';
+              } else {
+                joinCallRoom(roomId, false, 'video');
+              }
             };
           });
 
@@ -535,7 +543,6 @@
         });
     }
 
-    // ---------- Init chat ----------
     async function initChat() {
       try {
         messagesEl.innerHTML =
@@ -571,7 +578,6 @@
       window.location.href = 'chats.html';
     }
 
-    // ---------- Send text ----------
     sendBtn.onclick = async function() {
       let text = inputEl.value;
       text = text.replace(/\s*\n\s*/g, ' ').trim();
@@ -615,7 +621,6 @@
       }
     };
 
-    // ---------- Send media ----------
     attachBtn.onclick = () => {
       if (!chatId) {
         console.warn('No chatId yet, cannot attach');
@@ -669,15 +674,14 @@
       }
     };
 
-    // Mark as seen when tab is hidden
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         updateLastSeen();
       }
     });
 
-    // ---------- VIDEO CALL (WebRTC + Firestore rooms) ----------
-    const videoBtn = document.getElementById('videoBtn');
+    // ---------- VIDEO & VOICE CALLS (WebRTC + Firestore rooms) ----------
+
     const videoOverlay = document.getElementById('videoOverlay');
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
@@ -701,10 +705,22 @@
     let micEnabled = true;
     let camEnabled = true;
     let unsubscribeCandidates = null;
+    let currentCallType = 'video'; // "video" | "audio"
 
-    async function startLocalMedia() {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    async function startLocalMedia(callType) {
+      const constraints = callType === 'audio'
+        ? { audio: true, video: false }
+        : { audio: true, video: true };
+
+      localStream = await navigator.mediaDevices.getUserMedia(constraints);
       localVideo.srcObject = localStream;
+
+      if (callType === 'audio') {
+        localVideo.style.display = 'none';
+      } else {
+        localVideo.style.display = 'block';
+      }
+
       remoteStream = new MediaStream();
       remoteVideo.srcObject = remoteStream;
     }
@@ -725,13 +741,15 @@
       };
     }
 
-    async function createRoomAndSendLink() {
-      const roomId = chatId + '_' + Date.now();
+    async function createRoomAndSendLink(callType) {
+      currentCallType = callType;
+      const roomId = chatId + '_' + callType + '_' + Date.now();
       roomRef = db.collection('rooms').doc(roomId);
       await roomRef.set({
         chatId,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy: userUID
+        createdBy: userUID,
+        type: callType
       });
 
       const expiresAt = Date.now() + 10 * 60 * 1000;
@@ -749,23 +767,25 @@
       });
 
       await db.collection('chats').doc(chatId).set({
-        lastMessageText: '[Video call link]',
+        lastMessageText: callType === 'audio' ? '[Voice call link]' : '[Video call link]',
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastSenderId: userUID
       }, { merge: true });
 
-      await joinCallRoom(roomId, true);
+      await joinCallRoom(roomId, true, callType);
     }
 
-    async function joinCallRoom(roomId, isCaller = false) {
+    async function joinCallRoom(roomId, isCaller = false, callType = 'video') {
       try {
+        currentCallType = callType;
         videoOverlay.style.display = 'flex';
         callLabel.textContent =
-          'Video call with ' +
+          (callType === 'audio' ? 'Voice' : 'Video') +
+          ' call with ' +
           (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
         callStatus.textContent = 'Connecting...';
 
-        await startLocalMedia();
+        await startLocalMedia(callType);
         await createPeerConnection();
 
         caller = isCaller;
@@ -776,7 +796,8 @@
           await roomRef.set({
             chatId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: userUID
+            createdBy: userUID,
+            type: callType
           }, { merge: true });
         }
 
@@ -787,6 +808,7 @@
             chatId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: userUID,
+            type: callType,
             offer: {
               type: offer.type,
               sdp: offer.sdp
@@ -805,7 +827,7 @@
         } else {
           const snap = await roomRef.get();
           if (!snap.exists || !snap.data().offer) {
-            alert('Call not ready yet. Ask your friend to create link again.');
+            alert('Call not ready yet. Ask your friend to start again.');
             endCall();
             return;
           }
@@ -817,7 +839,8 @@
             answer: {
               type: answer.type,
               sdp: answer.sdp
-            }
+            },
+            type: snap.data().type || callType
           }, { merge: true });
 
           roomRef.onSnapshot(s => {
@@ -840,7 +863,7 @@
 
       } catch (e) {
         console.error('Join call room error:', e);
-        alert('Unable to start/join video call.');
+        alert('Unable to start/join ' + (callType === 'audio' ? 'voice' : 'video') + ' call.');
         endCall();
       }
     }
@@ -879,11 +902,18 @@
       caller = false;
       micEnabled = true;
       camEnabled = true;
+      toggleMicBtn.textContent = '🎙️';
+      toggleCamBtn.textContent = '📷';
     }
 
     videoBtn.onclick = () => {
       if (!chatId) return;
-      createRoomAndSendLink();
+      createRoomAndSendLink('video');
+    };
+
+    voiceBtn.onclick = () => {
+      if (!chatId) return;
+      createRoomAndSendLink('audio');
     };
 
     hangupBtn.onclick = () => {
@@ -899,12 +929,16 @@
 
     toggleCamBtn.onclick = () => {
       if (!localStream) return;
+      if (currentCallType === 'audio') {
+        return;
+      }
       camEnabled = !camEnabled;
       localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
 
     // ---------- Auth + selected friend ----------
+
     auth.onAuthStateChanged((user) => {
       if (!user) {
         window.location.href = 'index.html';
