@@ -127,6 +127,8 @@
       white-space: normal;
       word-break: break-word;
       position: relative;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     .message.me .message-bubble {
       background: #005c4b;
@@ -251,21 +253,6 @@
       margin-right: 4px;
     }
 
-    .msg-actions {
-      margin-top: 2px;
-      font-size: 10px;
-      color: #d1dde3;
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-    .msg-action {
-      cursor: pointer;
-    }
-    .msg-action:hover {
-      text-decoration: underline;
-    }
-
     /* Call overlay */
     .video-overlay {
       position: fixed;
@@ -360,6 +347,27 @@
       font-size: 12px;
       color: #8696a0;
     }
+
+    /* Context menu */
+    #msgContextMenu {
+      display: none;
+      position: fixed;
+      z-index: 300;
+      background: #202c33;
+      color: #e9edef;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      padding: 4px 0;
+      font-size: 13px;
+      min-width: 120px;
+    }
+    .ctx-item {
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .ctx-item:hover {
+      background: #2a3942;
+    }
   </style>
 </head>
 <body>
@@ -411,6 +419,13 @@
       <button class="video-btn reg" id="toggleCamBtn">📷</button>
       <button class="video-btn end" id="hangupBtn">✖</button>
     </div>
+  </div>
+
+  <!-- Message context menu (long press / right click) -->
+  <div id="msgContextMenu">
+    <div class="ctx-item" data-action="edit">Edit</div>
+    <div class="ctx-item" data-action="delete">Delete</div>
+    <div class="ctx-item" data-action="react">React</div>
   </div>
 
   <script>
@@ -528,8 +543,7 @@
       const ty = today.getFullYear(), tm = today.getMonth(), tday = today.getDate();
 
       const isToday = y === ty && m === tm && day === tday;
-      const isYesterday =
-        y === ty && m === tm && day === (tday - 1);
+      const isYesterday = y === ty && m === tm && day === (tday - 1);
 
       if (isToday) return 'Today';
       if (isYesterday) return 'Yesterday';
@@ -558,7 +572,6 @@
             const isMedia = !!msg.mediaUrl;
             let displayText = msg.text;
 
-            // Date separator
             const createdAtDate = msg.createdAt ? msg.createdAt.toDate() : null;
             if (createdAtDate) {
               const dateKey = createdAtDate.toDateString();
@@ -604,7 +617,6 @@
               }
             }
 
-            // Edited label & reactions
             let editedLabel = msg.edited ? '<span class="edited-label">edited</span>' : '';
             let reactionsHtml = '';
             if (msg.reactions) {
@@ -628,17 +640,12 @@
 
             msgDiv.innerHTML = `
               <div>
-                <div class="message-bubble">
+                <div class="message-bubble"
+                     data-id="${doc.id}"
+                     data-mine="${isMine ? '1' : '0'}">
                   ${contentHtml}
                   ${reactionsHtml}
                   ${editedLabel}
-                  ${isMine ? `
-                    <div class="msg-actions" data-id="${doc.id}">
-                      <span class="msg-action edit">Edit</span>
-                      <span class="msg-action delete">Delete</span>
-                      <span class="msg-action react">😊</span>
-                    </div>
-                  ` : ''}
                 </div>
                 <div class="message-time">${timeStr}</div>
               </div>
@@ -646,7 +653,6 @@
             messagesEl.appendChild(msgDiv);
           }
 
-          // Call links
           messagesEl.querySelectorAll('.video-call-link').forEach(el => {
             el.onclick = async () => {
               const roomId = el.getAttribute('data-room');
@@ -655,67 +661,6 @@
               const type = roomDoc.exists && roomDoc.data().type === 'audio' ? 'audio' : 'video';
               joinCallRoom(roomId, false, type);
             };
-          });
-
-          // Edit / delete / react handlers
-          messagesEl.querySelectorAll('.msg-actions').forEach(actionsEl => {
-            const msgId = actionsEl.getAttribute('data-id');
-            const editEl = actionsEl.querySelector('.edit');
-            const delEl = actionsEl.querySelector('.delete');
-            const reactEl = actionsEl.querySelector('.react');
-
-            if (editEl) {
-              editEl.onclick = async () => {
-                const newText = prompt('Edit message:');
-                if (newText == null) return;
-                const clean = newText.replace(/\s*\n\s*/g, ' ').trim();
-                if (!clean) return;
-                try {
-                  const encryptedText = await encrypt(clean, chatKey);
-                  await db.collection('chats').doc(chatId)
-                    .collection('messages').doc(msgId).update({
-                      text: encryptedText,
-                      encrypted: true,
-                      edited: true,
-                      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } catch (e) {
-                  console.error('Edit message error:', e);
-                  alert('Failed to edit message');
-                }
-              };
-            }
-
-            if (delEl) {
-              delEl.onclick = async () => {
-                if (!confirm('Delete this message?')) return;
-                try {
-                  await db.collection('chats').doc(chatId)
-                    .collection('messages').doc(msgId).delete();
-                } catch (e) {
-                  console.error('Delete message error:', e);
-                  alert('Failed to delete message');
-                }
-              };
-            }
-
-            if (reactEl) {
-              reactEl.onclick = async () => {
-                const emoji = prompt('React with emoji (e.g. 😊🔥❤️):', '😊');
-                if (!emoji) return;
-                try {
-                  await db.collection('chats').doc(chatId)
-                    .collection('messages').doc(msgId).set({
-                      reactions: {
-                        [userUID]: emoji
-                      }
-                    }, { merge: true });
-                } catch (e) {
-                  console.error('React error:', e);
-                  alert('Failed to add reaction');
-                }
-              };
-            }
           });
 
           scrollMessagesToBottom();
@@ -860,7 +805,7 @@
       if (document.visibilityState === 'hidden') updateLastSeen();
     });
 
-    // ---------- WEBRTC CALLS (shared) ----------
+    // ---------- WEBRTC CALLS ----------
     const videoOverlay = document.getElementById('videoOverlay');
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
@@ -1156,6 +1101,142 @@
       localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
+
+    // ---------- Message context menu (long press / right click) ----------
+    const msgContextMenu = document.getElementById('msgContextMenu');
+    let currentContextMsgId = null;
+    let currentContextIsMine = false;
+    let longPressTimer = null;
+
+    function hideContextMenu() {
+      msgContextMenu.style.display = 'none';
+      currentContextMsgId = null;
+      currentContextIsMine = false;
+    }
+
+    function showContextMenu(x, y, msgId, isMine) {
+      currentContextMsgId = msgId;
+      currentContextIsMine = isMine;
+
+      msgContextMenu.style.display = 'block';
+
+      const rect = msgContextMenu.getBoundingClientRect();
+      let left = x;
+      let top = y;
+
+      if (left + rect.width > window.innerWidth) {
+        left = window.innerWidth - rect.width - 8;
+      }
+      if (top + rect.height > window.innerHeight) {
+        top = window.innerHeight - rect.height - 8;
+      }
+
+      msgContextMenu.style.left = left + 'px';
+      msgContextMenu.style.top = top + 'px';
+
+      msgContextMenu.querySelectorAll('.ctx-item').forEach(item => {
+        const action = item.getAttribute('data-action');
+        if (!isMine && (action === 'edit' || action === 'delete')) {
+          item.style.display = 'none';
+        } else {
+          item.style.display = 'block';
+        }
+      });
+    }
+
+    messagesEl.addEventListener('contextmenu', (e) => {
+      const bubble = e.target.closest('.message-bubble');
+      if (!bubble) return;
+      e.preventDefault();
+
+      const msgId = bubble.getAttribute('data-id');
+      const isMine = bubble.getAttribute('data-mine') === '1';
+      showContextMenu(e.clientX, e.clientY, msgId, isMine);
+    });
+
+    messagesEl.addEventListener('touchstart', (e) => {
+      const bubble = e.target.closest('.message-bubble');
+      if (!bubble) return;
+
+      const touch = e.touches[0];
+      const msgId = bubble.getAttribute('data-id');
+      const isMine = bubble.getAttribute('data-mine') === '1';
+
+      longPressTimer = setTimeout(() => {
+        showContextMenu(touch.clientX, touch.clientY, msgId, isMine);
+      }, 500);
+    });
+
+    ['touchend', 'touchmove', 'touchcancel'].forEach(ev => {
+      messagesEl.addEventListener(ev, () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!msgContextMenu.contains(e.target)) hideContextMenu();
+    });
+
+    msgContextMenu.addEventListener('click', async (e) => {
+      const item = e.target.closest('.ctx-item');
+      if (!item || !currentContextMsgId) return;
+      const action = item.getAttribute('data-action');
+      const msgId = currentContextMsgId;
+      const isMine = currentContextIsMine;
+      hideContextMenu();
+
+      if (action === 'edit') {
+        if (!isMine) return;
+        const newText = prompt('Edit message:');
+        if (newText == null) return;
+        const clean = newText.replace(/\s*\n\s*/g, ' ').trim();
+        if (!clean) return;
+        try {
+          const encryptedText = await encrypt(clean, chatKey);
+          await db.collection('chats').doc(chatId)
+            .collection('messages').doc(msgId).update({
+              text: encryptedText,
+              encrypted: true,
+              edited: true,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (err) {
+          console.error('Edit message error:', err);
+          alert('Failed to edit message');
+        }
+      }
+
+      if (action === 'delete') {
+        if (!isMine) return;
+        if (!confirm('Delete this message?')) return;
+        try {
+          await db.collection('chats').doc(chatId)
+            .collection('messages').doc(msgId).delete();
+        } catch (err) {
+          console.error('Delete message error:', err);
+          alert('Failed to delete message');
+        }
+      }
+
+      if (action === 'react') {
+        const emoji = prompt('React with emoji (e.g. 😊🔥❤️):', '😊');
+        if (!emoji) return;
+        try {
+          await db.collection('chats').doc(chatId)
+            .collection('messages').doc(msgId).set({
+              reactions: {
+                [userUID]: emoji
+              }
+            }, { merge: true });
+        } catch (err) {
+          console.error('React error:', err);
+          alert('Failed to add reaction');
+        }
+      }
+    });
 
     // ---------- Auth + selected friend ----------
     auth.onAuthStateChanged((user) => {
