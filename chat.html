@@ -226,7 +226,7 @@
       word-break: break-all;
     }
 
-    /* Video/voice overlay */
+    /* Call overlay */
     .video-overlay {
       position: fixed;
       inset: 0;
@@ -306,7 +306,7 @@
   <div class="main-chat">
     <div class="messages" id="messages">
       <div class="no-chat">
-        <div style="font-size: 36px;">💬</div>
+        <div style="font-size: 32px;">💬</div>
         <div>Messages will appear here</div>
       </div>
     </div>
@@ -319,7 +319,7 @@
     <button id="sendBtn" class="send-btn" disabled>➤</button>
   </div>
 
-  <!-- Call overlay (used for video & voice; video preview hidden for voice) -->
+  <!-- Shared overlay for caller + receiver, voice + video -->
   <div class="video-overlay" id="videoOverlay">
     <div class="video-top">
       <span id="callLabel">Call</span>
@@ -348,9 +348,7 @@
       measurementId: "G-Q3136YFH7C"
     };
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
@@ -378,20 +376,17 @@
       const combined = [uid1, uid2].sort().join(':');
       const encoder = new TextEncoder();
       const keyData = encoder.encode(combined);
-      const hashBuffer = await window.crypto.subtle.digest('SHA-256', keyData);
-      const key = await window.crypto.subtle.importKey(
+      const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+      return await crypto.subtle.importKey(
         'raw', hashBuffer, {name: 'AES-GCM'}, false, ['encrypt', 'decrypt']
       );
-      return key;
     }
 
     async function encrypt(text, key) {
       const encoder = new TextEncoder();
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
       const data = encoder.encode(text);
-      const encrypted = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv }, key, data
-      );
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
       return JSON.stringify({
         iv: Array.from(iv),
         data: Array.from(new Uint8Array(encrypted))
@@ -404,7 +399,7 @@
         const decoder = new TextDecoder();
         const iv = new Uint8Array(ciphertext.iv);
         const encryptedData = new Uint8Array(ciphertext.data);
-        const decrypted = await window.crypto.subtle.decrypt(
+        const decrypted = await crypto.subtle.decrypt(
           { name: 'AES-GCM', iv }, key, encryptedData
         );
         return decoder.decode(decrypted);
@@ -476,14 +471,11 @@
               const roomId = msg.videoRoomId;
               const expiresAt = msg.expiresAt || 0;
               const expired = expiresAt && now > expiresAt;
+              if (expired) continue;
 
-              if (expired) {
-                continue;
-              } else {
-                contentHtml = `<span class="video-call-link" data-room="${roomId}">
-                  Join call (valid 10 min)
-                </span>`;
-              }
+              contentHtml = `<span class="video-call-link" data-room="${roomId}">
+                Join call (valid 10 min)
+              </span>`;
             } else {
               if (msg.encrypted && chatKey && !isMedia && msg.text) {
                 displayText = await decrypt(msg.text, chatKey);
@@ -518,20 +510,14 @@
             messagesEl.appendChild(msgDiv);
           }
 
-          // Join call links
+          // Click handler for call links
           messagesEl.querySelectorAll('.video-call-link').forEach(el => {
             el.onclick = async () => {
               const roomId = el.getAttribute('data-room');
               if (!roomId) return;
               const roomDoc = await db.collection('rooms').doc(roomId).get();
               const type = roomDoc.exists && roomDoc.data().type === 'audio' ? 'audio' : 'video';
-              if (type === 'audio') {
-                // For audio, better UX is to redirect to voice.html
-                localStorage.setItem('voiceRoomId', roomId);
-                window.location.href = 'voice.html';
-              } else {
-                joinCallRoom(roomId, false, 'video');
-              }
+              joinCallRoom(roomId, false, type);
             };
           });
 
@@ -560,7 +546,6 @@
           this.style.height = 'auto';
           this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
-
         inputEl.addEventListener('focus', () => {
           setTimeout(scrollMessagesToBottom, 200);
         });
@@ -675,12 +660,10 @@
     };
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        updateLastSeen();
-      }
+      if (document.visibilityState === 'hidden') updateLastSeen();
     });
 
-    // ---------- VIDEO & VOICE CALLS (WebRTC + Firestore rooms) ----------
+    // ---------- WEBRTC CALLS (shared for caller + receiver, voice + video) ----------
 
     const videoOverlay = document.getElementById('videoOverlay');
     const localVideo = document.getElementById('localVideo');
@@ -692,9 +675,7 @@
     const hangupBtn = document.getElementById('hangupBtn');
 
     const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     };
 
     let pc = null;
@@ -705,7 +686,8 @@
     let micEnabled = true;
     let camEnabled = true;
     let unsubscribeCandidates = null;
-    let currentCallType = 'video'; // "video" | "audio"
+    let unsubscribeRoom = null;
+    let currentCallType = 'video'; // "video" or "audio"
 
     async function startLocalMedia(callType) {
       const constraints = callType === 'audio'
@@ -809,19 +791,15 @@
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             createdBy: userUID,
             type: callType,
-            offer: {
-              type: offer.type,
-              sdp: offer.sdp
-            }
+            offer: { type: offer.type, sdp: offer.sdp }
           }, { merge: true });
 
-          roomRef.onSnapshot(async (snapshot) => {
+          unsubscribeRoom = roomRef.onSnapshot(async (snapshot) => {
             const data = snapshot.data();
-            if (!pc.currentRemoteDescription && data && data.answer) {
-              const answerDesc = new RTCSessionDescription(data.answer);
-              await pc.setRemoteDescription(answerDesc);
-              callStatus.textContent = 'Connected';
-            }
+            if (!pc || pc.currentRemoteDescription || !data || !data.answer) return;
+            const answerDesc = new RTCSessionDescription(data.answer);
+            await pc.setRemoteDescription(answerDesc);
+            callStatus.textContent = 'Connected';
           });
 
         } else {
@@ -836,18 +814,14 @@
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           await roomRef.set({
-            answer: {
-              type: answer.type,
-              sdp: answer.sdp
-            },
+            answer: { type: answer.type, sdp: answer.sdp },
             type: snap.data().type || callType
           }, { merge: true });
 
-          roomRef.onSnapshot(s => {
+          unsubscribeRoom = roomRef.onSnapshot(s => {
             const d = s.data();
-            if (d && d.answer) {
-              callStatus.textContent = 'Connected';
-            }
+            if (!pc || !d || !d.answer) return;
+            callStatus.textContent = 'Connected';
           });
         }
 
@@ -855,6 +829,7 @@
         unsubscribeCandidates = otherCandidatesCol.onSnapshot(snapshot => {
           snapshot.docChanges().forEach(change => {
             if (change.type === 'added') {
+              if (!pc) return;
               const candidate = new RTCIceCandidate(change.doc.data());
               pc.addIceCandidate(candidate);
             }
@@ -869,9 +844,13 @@
     }
 
     async function endCall() {
-      videoOverlay.style.display = 'none';
       callStatus.textContent = 'Disconnected';
+      videoOverlay.style.display = 'none';
 
+      if (unsubscribeRoom) {
+        unsubscribeRoom();
+        unsubscribeRoom = null;
+      }
       if (unsubscribeCandidates) {
         unsubscribeCandidates();
         unsubscribeCandidates = null;
@@ -929,9 +908,7 @@
 
     toggleCamBtn.onclick = () => {
       if (!localStream) return;
-      if (currentCallType === 'audio') {
-        return;
-      }
+      if (currentCallType === 'audio') return;
       camEnabled = !camEnabled;
       localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
