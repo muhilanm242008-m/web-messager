@@ -375,7 +375,7 @@
     <button class="back-btn" onclick="handleBack()">←</button>
     <div class="chat-header">
       <div class="chat-title" id="chatTitle">Loading chat...</div>
-      <div class="e2ee-status">🔒 Messages & calls are encrypted</div>
+      <div id="presenceStatus" class="e2ee-status">🔒 Messages & calls are encrypted</div>
     </div>
     <div class="nav-actions">
       <button class="icon-btn" id="voiceBtn" title="Voice call">📞</button>
@@ -421,7 +421,7 @@
     </div>
   </div>
 
-  <!-- Message context menu (long press / right click) -->
+  <!-- Message context menu -->
   <div id="msgContextMenu">
     <div class="ctx-item" data-action="edit">Edit</div>
     <div class="ctx-item" data-action="delete">Delete</div>
@@ -457,10 +457,61 @@
     const attachBtn = document.getElementById('attachBtn');
     const voiceBtn = document.getElementById('voiceBtn');
     const videoBtn = document.getElementById('videoBtn');
+    const presenceStatusEl = document.getElementById('presenceStatus');
+
+    let presenceInterval = null;
 
     function escapeHtml(text) {
       const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
       return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // ---------- Presence helpers ----------
+    async function setUserPresence(online) {
+      if (!userUID) return;
+      try {
+        await db.collection('users').doc(userUID).set({
+          online: online,
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (e) {
+        console.error('Presence update failed:', e);
+      }
+    }
+
+    function formatLastActive(ts) {
+      if (!ts) return '';
+      const d = ts.toDate();
+      const diffMs = Date.now() - d.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMin < 1) return 'Active just now';
+      if (diffMin < 60) return `Active ${diffMin} min ago`;
+      if (diffHours < 24) return `Active ${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `Active ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return 'Active long time ago';
+    }
+
+    function watchFriendPresence(friendUid) {
+      db.collection('users').doc(friendUid).onSnapshot(doc => {
+        if (!doc.exists) {
+          presenceStatusEl.textContent = '🔒 Messages & calls are encrypted';
+          return;
+        }
+        const data = doc.data();
+        if (data.online) {
+          presenceStatusEl.textContent = 'Online';
+        } else if (data.lastActive) {
+          presenceStatusEl.textContent = formatLastActive(data.lastActive);
+        } else {
+          presenceStatusEl.textContent = 'Offline';
+        }
+      }, (err) => {
+        console.error('Presence listener error:', err);
+        presenceStatusEl.textContent = '🔒 Messages & calls are encrypted';
+      });
     }
 
     // ---------- E2EE for text ----------
@@ -803,6 +854,8 @@
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') updateLastSeen();
+      if (document.visibilityState === 'visible') setUserPresence(true);
+      else setUserPresence(false);
     });
 
     // ---------- WEBRTC CALLS ----------
@@ -1245,6 +1298,11 @@
         return;
       }
       userUID = user.uid;
+
+      // Mark self online and keep refreshing
+      setUserPresence(true);
+      presenceInterval = setInterval(() => setUserPresence(true), 30000);
+
       const friendStr = localStorage.getItem('selectedFriend');
       if (!friendStr) {
         window.location.href = 'chats.html';
@@ -1254,7 +1312,16 @@
       const title =
         selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
       document.getElementById('chatTitle').textContent = title;
+
+      // Watch friend presence
+      watchFriendPresence(selectedFriend.id);
+
       initChat();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      setUserPresence(false);
+      if (presenceInterval) clearInterval(presenceInterval);
     });
   </script>
 </body>
