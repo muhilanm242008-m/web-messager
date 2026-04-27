@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Messenger - Voice Call</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top, #202c33 0, #0b141a 50%, #020c12 100%);
+      color: #e9edef;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-nav {
+      padding: 8px 12px;
+      background: #202c33;
+      border-bottom: 1px solid #2a3942;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .back-btn {
+      background: none;
+      color: #e9edef;
+      border: none;
+      font-size: 1.4em;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .call-header {
+      flex: 1;
+      text-align: center;
+    }
+    .call-title {
+      font-size: 16px;
+      font-weight: 500;
+      max-width: 220px;
+      margin: 0 auto;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .call-status {
+      font-size: 12px;
+      color: #8696a0;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .friend-name {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .friend-meta {
+      font-size: 13px;
+      color: #8696a0;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .call-controls {
+      display: flex;
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .call-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #fff;
+    }
+    .call-btn.primary { background: #00a884; }
+    .call-btn.secondary { background: #2a3942; }
+    .call-btn.end { background: #ff4b4b; }
+
+    .bottom-info {
+      padding: 10px;
+      font-size: 11px;
+      color: #8696a0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-nav">
+    <button class="back-btn" onclick="handleBack()">←</button>
+    <div class="call-header">
+      <div class="call-title" id="callTitle">Voice Call</div>
+      <div class="call-status" id="callStatus">Ready</div>
+    </div>
+    <div style="width:36px;"></div>
+  </div>
+
+  <div class="main">
+    <div class="avatar" id="friendAvatar">U</div>
+    <div class="friend-name" id="friendName">Friend</div>
+    <div class="friend-meta" id="friendMeta">@username · phone</div>
+
+    <div class="call-controls">
+      <button class="call-btn secondary" id="toggleMicBtn" title="Mute / unmute">🎙️</button>
+      <button class="call-btn primary" id="startCallBtn" title="Start voice call">📞</button>
+      <button class="call-btn end" id="hangupBtn" title="End call">✖</button>
+    </div>
+  </div>
+
+  <div class="bottom-info">
+    🔒 Voice calls use encrypted WebRTC channels. Keep this window open during the call.
+  </div>
+
+  <!-- Local/remote audio elements (hidden) -->
+  <audio id="localAudio" autoplay muted playsinline style="display:none;"></audio>
+  <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
+
+  <script>
+    // ---------- Firebase ----------
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let userUID = null;
+    let selectedFriend = null;
+    let chatId = null;
+
+    const callTitleEl = document.getElementById('callTitle');
+    const callStatusEl = document.getElementById('callStatus');
+    const friendAvatarEl = document.getElementById('friendAvatar');
+    const friendNameEl = document.getElementById('friendName');
+    const friendMetaEl = document.getElementById('friendMeta');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const startCallBtn = document.getElementById('startCallBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+    const localAudio = document.getElementById('localAudio');
+    const remoteAudio = document.getElementById('remoteAudio');
+
+    // ---------- WebRTC ----------
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
+
+    let pc = null;
+    let localStream = null;
+    let remoteStream = null;
+    let roomRef = null;
+    let caller = false;
+    let micEnabled = true;
+    let unsubscribeCandidates = null;
+
+    async function startLocalMedia() {
+      const constraints = { audio: true, video: false };
+      localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      localAudio.srcObject = localStream;
+      remoteStream = new MediaStream();
+      remoteAudio.srcObject = remoteStream;
+    }
+
+    async function createPeerConnection() {
+      pc = new RTCPeerConnection(rtcConfig);
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.ontrack = (event) => {
+        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+        remoteAudio.style.display = 'block';
+      };
+
+      pc.onicecandidate = async (event) => {
+        if (!event.candidate || !roomRef) return;
+        const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
+        await candidatesCol.add(event.candidate.toJSON());
+      };
+    }
+
+    async function createVoiceRoomAndNotify() {
+      const roomId = chatId + '_voice_' + Date.now();
+      roomRef = db.collection('rooms').doc(roomId);
+      await roomRef.set({
+        chatId,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy: userUID,
+        type: 'audio'
+      });
+
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+
+      // Store link as message in chat
+      const msgRef = db.collection('chats').doc(chatId).collection('messages');
+      await msgRef.add({
+        senderId: userUID,
+        text: '',
+        encrypted: false,
+        mediaUrl: null,
+        mediaType: null,
+        videoRoomId: roomId,      // reuse field name
+        expiresAt,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      await db.collection('chats').doc(chatId).set({
+        lastMessageText: '[Voice call link]',
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderId: userUID
+      }, { merge: true });
+
+      await joinVoiceRoom(roomId, true);
+    }
+
+    async function joinVoiceRoom(roomId, isCaller = false) {
+      try {
+        callStatusEl.textContent = 'Connecting...';
+        caller = isCaller;
+        roomRef = db.collection('rooms').doc(roomId);
+
+        await startLocalMedia();
+        await createPeerConnection();
+
+        const roomSnapshot = await roomRef.get();
+        if (!roomSnapshot.exists && isCaller) {
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID,
+            type: 'audio'
+          }, { merge: true });
+        }
+
+        if (isCaller) {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await roomRef.set({
+            chatId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: userUID,
+            type: 'audio',
+            offer: {
+              type: offer.type,
+              sdp: offer.sdp
+            }
+          }, { merge: true });
+
+          roomRef.onSnapshot(async (snapshot) => {
+            const data = snapshot.data();
+            if (!pc.currentRemoteDescription && data && data.answer) {
+              const answerDesc = new RTCSessionDescription(data.answer);
+              await pc.setRemoteDescription(answerDesc);
+              callStatusEl.textContent = 'Connected';
+            }
+          });
+
+        } else {
+          const snap = await roomRef.get();
+          if (!snap.exists || !snap.data().offer) {
+            alert('Call not ready yet. Ask your friend to start again.');
+            endVoiceCall();
+            return;
+          }
+          const offer = snap.data().offer;
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await roomRef.set({
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp
+            },
+            type: 'audio'
+          }, { merge: true });
+
+          roomRef.onSnapshot(s => {
+            const d = s.data();
+            if (d && d.answer) {
+              callStatusEl.textContent = 'Connected';
+            }
+          });
+        }
+
+        const otherCandidatesCol = roomRef.collection(isCaller ? 'calleeCandidates' : 'callerCandidates');
+        unsubscribeCandidates = otherCandidatesCol.onSnapshot(snapshot => {
+          snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+              const candidate = new RTCIceCandidate(change.doc.data());
+              pc.addIceCandidate(candidate);
+            }
+          });
+        });
+
+      } catch (e) {
+        console.error('Join voice room error:', e);
+        alert('Unable to start/join voice call.');
+        endVoiceCall();
+      }
+    }
+
+    async function endVoiceCall() {
+      callStatusEl.textContent = 'Disconnected';
+
+      if (unsubscribeCandidates) {
+        unsubscribeCandidates();
+        unsubscribeCandidates = null;
+      }
+
+      if (pc) {
+        pc.getSenders().forEach(sender => sender.track && sender.track.stop());
+        pc.close();
+        pc = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(t => t.stop());
+        remoteStream = null;
+      }
+
+      if (roomRef && caller) {
+        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
+        calleeCandidates.forEach(doc => doc.ref.delete());
+        const callerCandidates = await roomRef.collection('callerCandidates').get();
+        callerCandidates.forEach(doc => doc.ref.delete());
+        await roomRef.delete();
+      }
+      roomRef = null;
+      caller = false;
+      micEnabled = true;
+      toggleMicBtn.textContent = '🎙️';
+    }
+
+    function handleBack() {
+      endVoiceCall();
+      window.location.href = 'chats.html';
+    }
+
+    // ---------- UI & Event handlers ----------
+
+    toggleMicBtn.onclick = () => {
+      if (!localStream) return;
+      micEnabled = !micEnabled;
+      localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+      toggleMicBtn.textContent = micEnabled ? '🎙️' : '🔇';
+    };
+
+    startCallBtn.onclick = () => {
+      if (!chatId) return;
+      createVoiceRoomAndNotify();
+    };
+
+    hangupBtn.onclick = () => {
+      endVoiceCall();
+    };
+
+    // ---------- Auth & friend load ----------
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      userUID = user.uid;
+      const friendStr = localStorage.getItem('selectedFriend');
+      if (!friendStr) {
+        window.location.href = 'chats.html';
+        return;
+      }
+      selectedFriend = JSON.parse(friendStr);
+      const title =
+        selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Voice Call';
+      callTitleEl.textContent = title;
+
+      chatId = [userUID, selectedFriend.id].sort().join('_');
+
+      const name = selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Friend';
+      const username = selectedFriend.username || '';
+      const phone = selectedFriend.phone || '';
+      friendNameEl.textContent = name;
+      friendMetaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
+      friendAvatarEl.textContent = name[0] ? name[0].toUpperCase() : 'U';
+    });
+  </script>
+</body>
+</html>
