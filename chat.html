@@ -230,7 +230,7 @@
     .video-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.9);
       display: none;
       flex-direction: column;
       z-index: 200;
@@ -249,7 +249,7 @@
       align-items: center;
       justify-content: center;
       position: relative;
-      background: #000;
+      background: #050b10;
     }
     video { background: #000; }
     #remoteVideo {
@@ -269,25 +269,58 @@
       box-shadow: 0 6px 18px rgba(0,0,0,0.6);
     }
     .video-controls {
-      padding: 10px;
+      padding: 12px;
       display: flex;
       justify-content: center;
-      gap: 12px;
+      gap: 16px;
+      background: rgba(15,23,32,0.96);
     }
     .video-btn {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 20px;
       color: #fff;
     }
     .video-btn.end { background: #ff4b4b; }
     .video-btn.reg { background: #2a3942; }
+
+    /* Pro voice call info in overlay */
+    .call-info {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #e9edef;
+      z-index: 2;
+    }
+    .call-avatar {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00a884, #00d4aa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      font-weight: 700;
+      margin: 0 auto 8px;
+    }
+    .call-name {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .call-type {
+      font-size: 12px;
+      color: #8696a0;
+    }
   </style>
 </head>
 <body>
@@ -326,6 +359,11 @@
       <span id="callStatus">Connecting...</span>
     </div>
     <div class="video-main">
+      <div id="callInfo" class="call-info">
+        <div class="call-avatar" id="callAvatar">U</div>
+        <div class="call-name" id="callName">User</div>
+        <div class="call-type" id="callTypeLabel">Voice call</div>
+      </div>
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
@@ -510,7 +548,6 @@
             messagesEl.appendChild(msgDiv);
           }
 
-          // Click handler for call links
           messagesEl.querySelectorAll('.video-call-link').forEach(el => {
             el.onclick = async () => {
               const roomId = el.getAttribute('data-room');
@@ -663,7 +700,7 @@
       if (document.visibilityState === 'hidden') updateLastSeen();
     });
 
-    // ---------- WEBRTC CALLS (shared for caller + receiver, voice + video) ----------
+    // ---------- WEBRTC CALLS (shared) ----------
 
     const videoOverlay = document.getElementById('videoOverlay');
     const localVideo = document.getElementById('localVideo');
@@ -673,6 +710,11 @@
     const toggleMicBtn = document.getElementById('toggleMicBtn');
     const toggleCamBtn = document.getElementById('toggleCamBtn');
     const hangupBtn = document.getElementById('hangupBtn');
+
+    const callInfo = document.getElementById('callInfo');
+    const callAvatar = document.getElementById('callAvatar');
+    const callName = document.getElementById('callName');
+    const callTypeLabel = document.getElementById('callTypeLabel');
 
     const rtcConfig = {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -687,7 +729,7 @@
     let camEnabled = true;
     let unsubscribeCandidates = null;
     let unsubscribeRoom = null;
-    let currentCallType = 'video'; // "video" or "audio"
+    let currentCallType = 'video'; // "video" | "audio"
 
     async function startLocalMedia(callType) {
       const constraints = callType === 'audio'
@@ -699,8 +741,12 @@
 
       if (callType === 'audio') {
         localVideo.style.display = 'none';
+        remoteVideo.style.display = 'none';
+        callInfo.style.display = 'block';
       } else {
         localVideo.style.display = 'block';
+        remoteVideo.style.display = 'block';
+        callInfo.style.display = 'none';
       }
 
       remoteStream = new MediaStream();
@@ -761,10 +807,15 @@
       try {
         currentCallType = callType;
         videoOverlay.style.display = 'flex';
+
+        const displayName =
+          selectedFriend.name || selectedFriend.username || selectedFriend.phone || '';
         callLabel.textContent =
           (callType === 'audio' ? 'Voice' : 'Video') +
-          ' call with ' +
-          (selectedFriend.name || selectedFriend.username || selectedFriend.phone || '');
+          ' call with ' + (displayName || '');
+        callName.textContent = displayName || 'User';
+        callAvatar.textContent = displayName ? displayName[0].toUpperCase() : 'U';
+        callTypeLabel.textContent = callType === 'audio' ? 'Voice call' : 'Video call';
         callStatus.textContent = 'Connecting...';
 
         await startLocalMedia(callType);
@@ -796,7 +847,15 @@
 
           unsubscribeRoom = roomRef.onSnapshot(async (snapshot) => {
             const data = snapshot.data();
-            if (!pc || pc.currentRemoteDescription || !data || !data.answer) return;
+            if (!data) return;
+
+            // Other side ended
+            if (data.ended) {
+              endCall(false);
+              return;
+            }
+
+            if (!pc || pc.currentRemoteDescription || !data.answer) return;
             const answerDesc = new RTCSessionDescription(data.answer);
             await pc.setRemoteDescription(answerDesc);
             callStatus.textContent = 'Connected';
@@ -806,7 +865,7 @@
           const snap = await roomRef.get();
           if (!snap.exists || !snap.data().offer) {
             alert('Call not ready yet. Ask your friend to start again.');
-            endCall();
+            endCall(false);
             return;
           }
           const offer = snap.data().offer;
@@ -820,7 +879,14 @@
 
           unsubscribeRoom = roomRef.onSnapshot(s => {
             const d = s.data();
-            if (!pc || !d || !d.answer) return;
+            if (!d) return;
+
+            if (d.ended) {
+              endCall(false);
+              return;
+            }
+
+            if (!pc || !d.answer) return;
             callStatus.textContent = 'Connected';
           });
         }
@@ -839,13 +905,22 @@
       } catch (e) {
         console.error('Join call room error:', e);
         alert('Unable to start/join ' + (callType === 'audio' ? 'voice' : 'video') + ' call.');
-        endCall();
+        endCall(true);
       }
     }
 
-    async function endCall() {
+    async function endCall(sendEndSignal = true) {
       callStatus.textContent = 'Disconnected';
       videoOverlay.style.display = 'none';
+
+      // Notify peer only when this side initiated the end
+      if (sendEndSignal && roomRef) {
+        try {
+          await roomRef.set({ ended: true }, { merge: true });
+        } catch (e) {
+          console.error('Failed to mark call ended:', e);
+        }
+      }
 
       if (unsubscribeRoom) {
         unsubscribeRoom();
@@ -871,18 +946,31 @@
       }
 
       if (roomRef && caller) {
-        const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-        calleeCandidates.forEach(doc => doc.ref.delete());
-        const callerCandidates = await roomRef.collection('callerCandidates').get();
-        callerCandidates.forEach(doc => doc.ref.delete());
-        await roomRef.delete();
+        try {
+          const calleeCandidates = await roomRef.collection('calleeCandidates').get();
+          calleeCandidates.forEach(doc => doc.ref.delete());
+          const callerCandidates = await roomRef.collection('callerCandidates').get();
+          callerCandidates.forEach(doc => doc.ref.delete());
+          await roomRef.delete();
+        } catch (e) {
+          console.error('Clean room error:', e);
+        }
       }
+
       roomRef = null;
       caller = false;
       micEnabled = true;
       camEnabled = true;
       toggleMicBtn.textContent = '🎙️';
       toggleCamBtn.textContent = '📷';
+
+      // Reset overlay visuals
+      callInfo.style.display = 'none';
+      localVideo.style.display = 'block';
+      remoteVideo.style.display = 'block';
+
+      // Go back to chat page (as you asked)
+      window.location.href = 'chats.html';
     }
 
     videoBtn.onclick = () => {
@@ -896,7 +984,7 @@
     };
 
     hangupBtn.onclick = () => {
-      endCall();
+      endCall(true);
     };
 
     toggleMicBtn.onclick = () => {
@@ -915,7 +1003,6 @@
     };
 
     // ---------- Auth + selected friend ----------
-
     auth.onAuthStateChanged((user) => {
       if (!user) {
         window.location.href = 'index.html';
