@@ -727,7 +727,6 @@
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
 
-        // chatId based on two UIDs
         chatId = [userUID, selectedFriend.id].sort().join('_');
         console.log('Chat init userUID=', userUID, 'friendId=', selectedFriend.id, 'chatId=', chatId);
 
@@ -901,25 +900,32 @@
     let currentCallType = 'video';
 
     async function startLocalMedia(callType) {
-      const constraints = callType === 'audio'
-        ? { audio: true, video: false }
-        : { audio: true, video: true };
+      try {
+        const constraints = callType === 'audio'
+          ? { audio: true, video: false }
+          : { audio: true, video: true };
 
-      localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      localVideo.srcObject = localStream;
+        console.log('getUserMedia constraints', constraints);
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        localVideo.srcObject = localStream;
 
-      if (callType === 'audio') {
-        localVideo.style.display = 'none';
-        remoteVideo.style.display = 'none';
-        callInfo.style.display = 'block';
-      } else {
-        localVideo.style.display = 'block';
-        remoteVideo.style.display = 'block';
-        callInfo.style.display = 'none';
+        if (callType === 'audio') {
+          localVideo.style.display = 'none';
+          remoteVideo.style.display = 'none';
+          callInfo.style.display = 'block';
+        } else {
+          localVideo.style.display = 'block';
+          remoteVideo.style.display = 'block';
+          callInfo.style.display = 'none';
+        }
+
+        remoteStream = new MediaStream();
+        remoteVideo.srcObject = remoteStream;
+      } catch (err) {
+        console.error('getUserMedia error:', err);
+        alert('Cannot access camera/mic: ' + err.message);
+        throw err;
       }
-
-      remoteStream = new MediaStream();
-      remoteVideo.srcObject = remoteStream;
     }
 
     async function createPeerConnection() {
@@ -935,6 +941,10 @@
         if (!event.candidate || !roomRef) return;
         const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
         await candidatesCol.add(event.candidate.toJSON());
+      };
+
+      pc.onicecandidateerror = (event) => {
+        console.error('ICE candidate error:', event);
       };
     }
 
@@ -1004,6 +1014,10 @@
             createdBy: userUID,
             type: callType
           }, { merge: true });
+        } else if (!roomSnapshot.exists && !isCaller) {
+          alert('Call room not found. Ask your friend to call again.');
+          endCall(false);
+          return;
         }
 
         if (isCaller) {
@@ -1142,12 +1156,20 @@
     }
 
     videoBtn.onclick = () => {
-      if (!chatId) return;
+      console.log('Video button clicked, chatId=', chatId);
+      if (!chatId) {
+        alert('No chatId yet. Open a chat first.');
+        return;
+      }
       createRoomAndSendLink('video');
     };
 
     voiceBtn.onclick = () => {
-      if (!chatId) return;
+      console.log('Voice button clicked, chatId=', chatId);
+      if (!chatId) {
+        alert('No chatId yet. Open a chat first.');
+        return;
+      }
       createRoomAndSendLink('audio');
     };
 
