@@ -727,7 +727,10 @@
         messagesEl.innerHTML =
           '<div class="no-chat loading">Connecting to secure chat...</div>';
 
+        // chatId based on two UIDs
         chatId = [userUID, selectedFriend.id].sort().join('_');
+        console.log('Chat init userUID=', userUID, 'friendId=', selectedFriend.id, 'chatId=', chatId);
+
         chatKey = await getChatKey(userUID, selectedFriend.id);
         await ensureChatDoc();
         await updateLastSeen();
@@ -1287,7 +1290,7 @@
       }
 
       if (action === 'react') {
-        const emoji = prompt('React with emoji ('😊');
+        const emoji = prompt('React with emoji (e.g. 😊🔥❤️):', '😊');
         if (!emoji) return;
 
         try {
@@ -1325,10 +1328,20 @@
 
       const friendStr = localStorage.getItem('selectedFriend');
       if (!friendStr) {
+        console.error('No selectedFriend in localStorage');
         window.location.href = 'chats.html';
         return;
       }
+
       selectedFriend = JSON.parse(friendStr);
+      console.log('Selected friend loaded:', selectedFriend);
+
+      if (!selectedFriend.id) {
+        alert('selectedFriend.id is missing. It must be the friend UID.');
+        window.location.href = 'chats.html';
+        return;
+      }
+
       const title =
         selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
       document.getElementById('chatTitle').textContent = title;
@@ -1342,6 +1355,11 @@
       setUserPresence(false);
       if (presenceInterval) clearInterval(presenceInterval);
     });
+
+    function handleBack() {
+      updateLastSeen();
+      window.location.href = 'chats.html';
+    }
   </script>
 </body>
 </html>
