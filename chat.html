@@ -399,7 +399,7 @@
     <button id="sendBtn" class="send-btn" disabled>➤</button>
   </div>
 
-  <!-- Shared overlay for caller + receiver, voice + video -->
+  <!-- Call overlay -->
   <div class="video-overlay" id="videoOverlay">
     <div class="video-top">
       <span id="callLabel">Call</span>
@@ -466,7 +466,7 @@
       return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    // ---------- Presence helpers ----------
+    // ---------- Presence ----------
     async function setUserPresence(online) {
       if (!userUID) return;
       try {
@@ -508,13 +508,13 @@
         } else {
           presenceStatusEl.textContent = 'Offline';
         }
-      }, (err) => {
+      }, err => {
         console.error('Presence listener error:', err);
         presenceStatusEl.textContent = '🔒 Messages & calls are encrypted';
       });
     }
 
-    // ---------- E2EE for text ----------
+    // ---------- E2EE ----------
     async function getChatKey(uid1, uid2) {
       const combined = [uid1, uid2].sort().join(':');
       const encoder = new TextEncoder();
@@ -608,7 +608,7 @@
     function loadMessages() {
       db.collection('chats').doc(chatId).collection('messages')
         .orderBy('createdAt', 'asc')
-        .onSnapshot(async (snapshot) => {
+        .onSnapshot(async snapshot => {
           messagesEl.innerHTML = '';
           if (snapshot.empty) {
             renderEmptyState();
@@ -715,7 +715,7 @@
           });
 
           scrollMessagesToBottom();
-        }, (error) => {
+        }, error => {
           console.error('Messages error:', error);
           messagesEl.innerHTML =
             '<div class="no-chat">❌ Error loading messages</div>';
@@ -772,6 +772,9 @@
           mediaType: null,
           videoRoomId: null,
           expiresAt: null,
+          reactions: {},
+          edited: false,
+          updatedAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -807,7 +810,7 @@
       mediaInput.click();
     };
 
-    mediaInput.onchange = async (e) => {
+    mediaInput.onchange = async e => {
       const file = e.target.files[0];
       if (!file || !chatId) return;
 
@@ -835,6 +838,9 @@
           mediaType: isImage ? 'image' : (isVideo ? 'video' : 'file'),
           videoRoomId: null,
           expiresAt: null,
+          reactions: {},
+          edited: false,
+          updatedAt: null,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -853,9 +859,12 @@
     };
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') updateLastSeen();
-      if (document.visibilityState === 'visible') setUserPresence(true);
-      else setUserPresence(false);
+      if (document.visibilityState === 'hidden') {
+        updateLastSeen();
+        setUserPresence(false);
+      } else {
+        setUserPresence(true);
+      }
     });
 
     // ---------- WEBRTC CALLS ----------
@@ -915,11 +924,11 @@
 
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-      pc.ontrack = (event) => {
+      pc.ontrack = event => {
         event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
       };
 
-      pc.onicecandidate = async (event) => {
+      pc.onicecandidate = async event => {
         if (!event.candidate || !roomRef) return;
         const candidatesCol = roomRef.collection(caller ? 'callerCandidates' : 'calleeCandidates');
         await candidatesCol.add(event.candidate.toJSON());
@@ -948,6 +957,9 @@
         mediaType: null,
         videoRoomId: roomId,
         expiresAt,
+        reactions: {},
+        edited: false,
+        updatedAt: null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -1002,7 +1014,7 @@
             offer: { type: offer.type, sdp: offer.sdp }
           }, { merge: true });
 
-          unsubscribeRoom = roomRef.onSnapshot(async (snapshot) => {
+          unsubscribeRoom = roomRef.onSnapshot(async snapshot => {
             const data = snapshot.data();
             if (!data) return;
 
@@ -1155,7 +1167,7 @@
       toggleCamBtn.textContent = camEnabled ? '📷' : '🚫';
     };
 
-    // ---------- Message context menu (long press / right click) ----------
+    // ---------- Message context menu & reactions ----------
     const msgContextMenu = document.getElementById('msgContextMenu');
     let currentContextMsgId = null;
     let currentContextIsMine = false;
@@ -1197,7 +1209,7 @@
       });
     }
 
-    messagesEl.addEventListener('contextmenu', (e) => {
+    messagesEl.addEventListener('contextmenu', e => {
       const bubble = e.target.closest('.message-bubble');
       if (!bubble) return;
       e.preventDefault();
@@ -1207,7 +1219,7 @@
       showContextMenu(e.clientX, e.clientY, msgId, isMine);
     });
 
-    messagesEl.addEventListener('touchstart', (e) => {
+    messagesEl.addEventListener('touchstart', e => {
       const bubble = e.target.closest('.message-bubble');
       if (!bubble) return;
 
@@ -1229,11 +1241,11 @@
       });
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', e => {
       if (!msgContextMenu.contains(e.target)) hideContextMenu();
     });
 
-    msgContextMenu.addEventListener('click', async (e) => {
+    msgContextMenu.addEventListener('click', async e => {
       const item = e.target.closest('.ctx-item');
       if (!item || !currentContextMsgId) return;
       const action = item.getAttribute('data-action');
@@ -1275,15 +1287,24 @@
       }
 
       if (action === 'react') {
-        const emoji = prompt('React with emoji (e.g. 😊🔥❤️):', '😊');
+        const emoji = prompt('React with emoji ('😊');
         if (!emoji) return;
+
         try {
-          await db.collection('chats').doc(chatId)
-            .collection('messages').doc(msgId).set({
-              reactions: {
-                [userUID]: emoji
-              }
-            }, { merge: true });
+          const msgRef = db.collection('chats').doc(chatId)
+            .collection('messages').doc(msgId);
+
+          const snap = await msgRef.get();
+          const data = snap.exists ? snap.data() : {};
+          const currentReactions = data.reactions || {};
+
+          await msgRef.set({
+            reactions: {
+              ...currentReactions,
+              [userUID]: emoji
+            }
+          }, { merge: true });
+
         } catch (err) {
           console.error('React error:', err);
           alert('Failed to add reaction');
@@ -1292,14 +1313,13 @@
     });
 
     // ---------- Auth + selected friend ----------
-    auth.onAuthStateChanged((user) => {
+    auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = 'index.html';
         return;
       }
       userUID = user.uid;
 
-      // Mark self online and keep refreshing
       setUserPresence(true);
       presenceInterval = setInterval(() => setUserPresence(true), 30000);
 
@@ -1313,7 +1333,6 @@
         selectedFriend.name || selectedFriend.username || selectedFriend.phone || 'Chat';
       document.getElementById('chatTitle').textContent = title;
 
-      // Watch friend presence
       watchFriendPresence(selectedFriend.id);
 
       initChat();
