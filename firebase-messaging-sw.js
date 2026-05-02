@@ -1,6 +1,11 @@
+// firebase-messaging-sw.js
+// Place this file at the ROOT of your repository
+// File path: /firebase-messaging-sw.js
+
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
+// ✅ Same config as your main app
 firebase.initializeApp({
   apiKey:            "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain:        "web-messager-533ae.firebaseapp.com",
@@ -12,74 +17,110 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
+// ─────────────────────────────────────────
+// BACKGROUND MESSAGE HANDLER
+// Fires when app is CLOSED or in background
+// ─────────────────────────────────────────
 messaging.onBackgroundMessage(payload => {
-  console.log('Background message received:', payload);
+  console.log('[SW] Background message received:', payload);
 
-  const { title, body, icon } = payload.notification || {};
-  const data = payload.data || {};
+  const notification = payload.notification || {};
+  const data         = payload.data         || {};
 
-  self.registration.showNotification(title || 'Secure Messenger', {
-    body:    body  || 'You have a new notification',
-    icon:    icon  || '/icon.png',
+  const title = notification.title || 'Secure Messenger';
+  const body  = notification.body  || 'You have a new notification';
+  const icon  = notification.icon  || '/icon.png';
+
+  self.registration.showNotification(title, {
+    body,
+    icon,
     badge:   '/badge.png',
-    tag:     data.tag || 'default',
+    tag:     data.tag || 'sm-' + Date.now(),
     data:    data,
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
     actions: [
       { action: 'open',    title: '💬 Open' },
       { action: 'dismiss', title: '✕ Dismiss' }
-    ],
-    vibrate:  [200, 100, 200],
-    requireInteraction: true
+    ]
   });
 });
 
-// Handle notification click
+// ─────────────────────────────────────────
+// NOTIFICATION CLICK HANDLER
+// ─────────────────────────────────────────
 self.addEventListener('notificationclick', e => {
+  console.log('[SW] Notification clicked:', e.action);
   e.notification.close();
 
-  const data   = e.notification.data || {};
-  const action = e.action;
+  if (e.action === 'dismiss') return;
 
-  if (action === 'dismiss') return;
-
-  // Open or focus the app
-  const urlToOpen = data.url || data.chatUrl || '/chats.html';
+  const data      = e.notification.data || {};
+  const targetUrl = data.chatFriendId
+    ? 'https://muhilanm242008-m.github.io/chat.html'
+    : 'https://muhilanm242008-m.github.io/chats.html';
 
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      // If app already open, focus it
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.focus();
-          // Send message to client to navigate
-          client.postMessage({ type: 'NOTIFICATION_CLICK', data });
-          return;
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // If app already open → focus it and send message
+        for (const client of clientList) {
+          if (client.url.includes('muhilanm242008-m.github.io') && 'focus' in client) {
+            client.focus();
+            client.postMessage({ type: 'NOTIFICATION_CLICK', data });
+            return;
+          }
         }
-      }
-      // Otherwise open new window
-      if (clients.openWindow) return clients.openWindow(urlToOpen);
-    })
+        // Otherwise open new tab
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
   );
 });
 
-// Handle push event directly (fallback)
+// ─────────────────────────────────────────
+// PUSH EVENT (fallback if FCM doesn't handle)
+// ─────────────────────────────────────────
 self.addEventListener('push', e => {
   if (!e.data) return;
 
   let payload;
-  try { payload = e.data.json(); } 
-  catch { payload = { notification: { title: 'Secure Messenger', body: e.data.text() } }; }
+  try {
+    payload = e.data.json();
+  } catch (_) {
+    payload = {
+      notification: { title: 'Secure Messenger', body: e.data.text() }
+    };
+  }
 
   const notification = payload.notification || {};
+  const data         = payload.data         || {};
 
   e.waitUntil(
-    self.registration.showNotification(notification.title || 'Secure Messenger', {
-      body:  notification.body || '',
-      icon:  notification.icon || '/icon.png',
-      badge: '/badge.png',
-      data:  payload.data || {},
-      requireInteraction: true
-    })
+    self.registration.showNotification(
+      notification.title || 'Secure Messenger',
+      {
+        body:               notification.body || '',
+        icon:               notification.icon || '/icon.png',
+        badge:              '/badge.png',
+        data,
+        requireInteraction: true,
+        vibrate:            [200, 100, 200]
+      }
+    )
   );
+});
+
+// ─────────────────────────────────────────
+// INSTALL & ACTIVATE (keep SW up to date)
+// ─────────────────────────────────────────
+self.addEventListener('install', e => {
+  console.log('[SW] Installing...');
+  self.skipWaiting(); // Activate immediately
+});
+
+self.addEventListener('activate', e => {
+  console.log('[SW] Activated');
+  e.waitUntil(clients.claim()); // Take control immediately
 });
