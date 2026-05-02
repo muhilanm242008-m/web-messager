@@ -1,6 +1,3 @@
-// firebase-messaging-sw.js
-// ✅ Place at ROOT of your GitHub repository
-
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
@@ -15,19 +12,17 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// ─────────────────────────────────────────────
-// Get base URL dynamically
-// ─────────────────────────────────────────────
-const BASE_URL = self.location.origin + 
+const BASE_URL = self.location.origin +
   self.location.pathname.replace('/firebase-messaging-sw.js', '');
 
 console.log('[SW] Base URL:', BASE_URL);
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 // BACKGROUND MESSAGE
-// ─────────────────────────────────────────────
+// Fires when app is CLOSED or in background
+// ─────────────────────────────────────────
 messaging.onBackgroundMessage(payload => {
-  console.log('[SW] Background message:', payload);
+  console.log('[SW] Background message received:', payload);
 
   const notification = payload.notification || {};
   const data         = payload.data         || {};
@@ -38,23 +33,23 @@ messaging.onBackgroundMessage(payload => {
   return self.registration.showNotification(title, {
     body,
     icon:               BASE_URL + '/icon.png',
-    badge:              BASE_URL + '/badge.png',
+    badge:              BASE_URL + '/icon.png',
     tag:                data.tag || ('sm-' + Date.now()),
     data,
     vibrate:            [200, 100, 200],
     requireInteraction: true,
     actions: [
-      { action: 'open',    title: '💬 Open'    },
-      { action: 'dismiss', title: '✕ Dismiss'  }
+      { action: 'open',    title: '💬 Open'   },
+      { action: 'dismiss', title: '✕ Dismiss' }
     ]
   });
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 // NOTIFICATION CLICK
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 self.addEventListener('notificationclick', e => {
-  console.log('[SW] Notification clicked, action:', e.action);
+  console.log('[SW] Notification clicked:', e.action);
   e.notification.close();
 
   if (e.action === 'dismiss') return;
@@ -67,7 +62,6 @@ self.addEventListener('notificationclick', e => {
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
-        // Focus existing window
         for (const client of clientList) {
           if (client.url.startsWith(BASE_URL) && 'focus' in client) {
             client.focus();
@@ -75,29 +69,22 @@ self.addEventListener('notificationclick', e => {
             return;
           }
         }
-        // Open new window
-        if (clients.openWindow) {
-          return clients.openWindow(targetUrl);
-        }
+        if (clients.openWindow) return clients.openWindow(targetUrl);
       })
   );
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 // PUSH FALLBACK
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 self.addEventListener('push', e => {
   if (!e.data) return;
 
   let payload;
-  try {
-    payload = e.data.json();
-  } catch (_) {
+  try { payload = e.data.json(); }
+  catch (_) {
     payload = {
-      notification: {
-        title: 'Secure Messenger',
-        body:  e.data.text()
-      }
+      notification: { title: 'Secure Messenger', body: e.data.text() }
     };
   }
 
@@ -106,11 +93,10 @@ self.addEventListener('push', e => {
 
   e.waitUntil(
     self.registration.showNotification(
-      notification.title || 'Secure Messenger',
-      {
+      notification.title || 'Secure Messenger', {
         body:               notification.body || '',
         icon:               BASE_URL + '/icon.png',
-        badge:              BASE_URL + '/badge.png',
+        badge:              BASE_URL + '/icon.png',
         data,
         requireInteraction: true,
         vibrate:            [200, 100, 200]
@@ -119,17 +105,17 @@ self.addEventListener('push', e => {
   );
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 // INSTALL
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 self.addEventListener('install', e => {
   console.log('[SW] Installing...');
   e.waitUntil(self.skipWaiting());
 });
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 // ACTIVATE
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
 self.addEventListener('activate', e => {
   console.log('[SW] Activated');
   e.waitUntil(clients.claim());
