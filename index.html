@@ -1,15 +1,19 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Secure Messenger - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,13 +21,19 @@
       --accent: #c084fc;
       --accent2: #818cf8;
       --accent3: #f472b6;
+      --accent4: #34d399;
       --bg: #06060c;
       --card: #0e0e18;
       --surface: #141422;
       --surface2: #1a1a2e;
       --border: #232340;
+      --border2: #2d2d4a;
       --text: #eeeef4;
       --muted: #6b6b88;
+      --google-blue: #4285f4;
+      --google-red: #ea4335;
+      --google-yellow: #fbbc05;
+      --google-green: #34a853;
     }
 
     body {
@@ -35,10 +45,10 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      position: relative;
+      padding: 20px;
     }
 
-    /* ===== BACKGROUND ANIMATION ===== */
+    /* ===== BACKGROUND EFFECTS ===== */
     .cyber-bg {
       position: fixed;
       inset: 0;
@@ -52,34 +62,44 @@
       position: absolute;
       inset: 0;
       background:
-        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(192,132,252,0.015) 60px),
-        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(192,132,252,0.015) 60px);
+        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(192,132,252,0.02) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(192,132,252,0.02) 60px);
     }
 
-    .bg-glow {
+    .bg-blob {
       position: absolute;
       border-radius: 50%;
       filter: blur(100px);
-      opacity: 0.1;
-      animation: blobMove 20s ease-in-out infinite alternate;
+      opacity: 0.15;
+      animation: blobDrift 20s ease-in-out infinite alternate;
     }
 
-    .bg-glow:nth-child(1) {
+    .bg-blob:nth-child(1) {
       width: 500px; height: 500px;
       background: var(--accent);
-      top: -20%; left: -20%;
+      top: -15%; left: -10%;
     }
-    
-    .bg-glow:nth-child(2) {
+
+    .bg-blob:nth-child(2) {
       width: 400px; height: 400px;
       background: var(--accent2);
-      bottom: -10%; right: -15%;
+      bottom: -10%; right: -8%;
+      animation-delay: -5s;
+    }
+
+    .bg-blob:nth-child(3) {
+      width: 300px; height: 300px;
+      background: var(--accent3);
+      top: 40%; left: 50%;
+      transform: translate(-50%, -50%);
       animation-delay: -10s;
     }
 
-    @keyframes blobMove {
+    @keyframes blobDrift {
       0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(40px, -40px) scale(1.1); }
+      33% { transform: translate(30px, -40px) scale(1.1); }
+      66% { transform: translate(-20px, 30px) scale(0.95); }
+      100% { transform: translate(15px, -20px) scale(1.05); }
     }
 
     .scan-line {
@@ -87,8 +107,8 @@
       width: 100%;
       height: 1px;
       background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      opacity: 0.06;
-      animation: scanDown 10s linear infinite;
+      opacity: 0.05;
+      animation: scanDown 8s linear infinite;
     }
 
     @keyframes scanDown {
@@ -106,83 +126,110 @@
       background-size: 128px;
     }
 
+    /* ===== FLOATING SHAPES ===== */
+    .geo-shape {
+      position: absolute;
+      border: 1px solid;
+      opacity: 0.06;
+      animation: geoFloat 25s linear infinite;
+    }
+
+    .geo-shape:nth-child(4) {
+      width: 80px; height: 80px;
+      border-color: var(--accent);
+      top: 15%; left: 8%;
+      transform: rotate(45deg);
+    }
+
+    .geo-shape:nth-child(5) {
+      width: 60px; height: 60px;
+      border-color: var(--accent2);
+      bottom: 20%; right: 12%;
+      border-radius: 50%;
+      animation-duration: 18s;
+      animation-delay: -6s;
+    }
+
+    @keyframes geoFloat {
+      0% { transform: rotate(0deg) translateY(0); }
+      50% { transform: rotate(180deg) translateY(-30px); }
+      100% { transform: rotate(360deg) translateY(0); }
+    }
+
     /* ===== LOGIN CARD ===== */
     .login-card {
       position: relative;
-      z-index: 10;
+      z-index: 1;
       width: 100%;
       max-width: 420px;
-      margin: 24px;
-      padding: 40px 32px;
-      border-radius: 28px;
       background: rgba(14, 14, 24, 0.7);
       backdrop-filter: blur(40px);
       -webkit-backdrop-filter: blur(40px);
-      border: 1px solid rgba(192, 132, 252, 0.15);
-      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-      text-align: center;
+      border-radius: 28px;
+      padding: 40px 32px;
+      border: 1px solid var(--border);
+      box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
       animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       opacity: 0;
-      transform: translateY(30px);
+      transform: translateY(40px) scale(0.95);
     }
 
     @keyframes cardEntrance {
-      to { opacity: 1; transform: translateY(0); }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
-    /* ===== LOGO ===== */
-    .brand-icon {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 24px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-      animation: iconBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
-    }
-
-    @keyframes iconBounce {
-      from { opacity: 0; transform: scale(0) rotate(-10deg); }
-      to { opacity: 1; transform: scale(1) rotate(0); }
-    }
-
-    .brand-icon::before {
+    /* Glow border */
+    .login-card::before {
       content: '';
       position: absolute;
-      inset: 2px;
-      background: var(--card);
-      border-radius: 16px;
+      inset: -1px;
+      border-radius: 29px;
+      background: linear-gradient(135deg, rgba(192,132,252,0.3), transparent 40%, transparent 60%, rgba(129,140,248,0.2));
+      z-index: -1;
+      opacity: 0;
+      animation: borderGlow 4s ease-in-out infinite alternate;
+      animation-delay: 1s;
     }
 
-    .brand-icon span {
-      position: relative;
-      z-index: 1;
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    @keyframes borderGlow {
+      0% { opacity: 0.3; }
+      100% { opacity: 1; }
     }
 
-    /* ===== TEXT ===== */
-    h1 {
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      letter-spacing: -0.4px;
-      animation: fadeSlideUp 0.6s ease 0.4s both;
+    /* Corner accents */
+    .corner-accent {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      opacity: 0.15;
     }
 
-    p.subtitle {
-      font-size: 14px;
-      color: var(--muted);
-      margin-bottom: 36px;
-      line-height: 1.5;
-      animation: fadeSlideUp 0.6s ease 0.5s both;
+    .corner-accent.top-right {
+      top: 14px;
+      right: 14px;
+      border-top: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+      border-radius: 0 12px 0 0;
+    }
+
+    .corner-accent.bottom-left {
+      bottom: 14px;
+      left: 14px;
+      border-bottom: 2px solid var(--accent2);
+      border-left: 2px solid var(--accent2);
+      border-radius: 0 0 0 12px;
+    }
+
+    /* ===== HEADER ===== */
+    .login-header {
+      text-align: center;
+      margin-bottom: 28px;
+      animation: fadeSlideUp 0.6s ease 0.2s both;
     }
 
     @keyframes fadeSlideUp {
@@ -190,121 +237,358 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===== BUTTON ===== */
-    .login-btn {
+    .logo-mark {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      animation: logoBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+      box-shadow: 0 10px 30px rgba(192, 132, 252, 0.3);
+    }
+
+    @keyframes logoBounce {
+      from {
+        opacity: 0;
+        transform: scale(0) rotate(-20deg);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+      }
+    }
+
+    .logo-mark::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+      animation: logoShine 3s ease-in-out infinite;
+    }
+
+    @keyframes logoShine {
+      0%, 100% { transform: translateX(-100%) rotate(45deg); }
+      50% { transform: translateX(100%) rotate(45deg); }
+    }
+
+    .logo-mark span {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--bg);
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #ffffff, #8696a0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ===== FEATURES ===== */
+    .features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+      animation: fadeSlideUp 0.6s ease 0.4s both;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .feature-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .feature-dot.purple { background: var(--accent); box-shadow: 0 0 8px rgba(192,132,252,0.4); }
+    .feature-dot.blue { background: var(--accent2); box-shadow: 0 0 8px rgba(129,140,248,0.4); }
+    .feature-dot.green { background: var(--accent4); box-shadow: 0 0 8px rgba(52,211,153,0.4); }
+
+    /* ===== GOOGLE BUTTON ===== */
+    .btn-wrapper {
+      animation: fadeSlideUp 0.6s ease 0.5s both;
+    }
+
+    .google-btn {
       width: 100%;
-      padding: 14px 20px;
-      border-radius: 14px;
+      padding: 16px 20px;
+      border-radius: 16px;
       border: none;
-      background: #fff;
-      color: #333;
+      background: linear-gradient(135deg, #1a1a2e, #252540);
+      color: var(--text);
+      font-family: inherit;
       font-size: 15px;
       font-weight: 600;
-      font-family: inherit;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
-      animation: fadeSlideUp 0.6s ease 0.6s both;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid var(--border);
     }
 
-    .login-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.15);
+    .google-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(192,132,252,0.1), rgba(129,140,248,0.1));
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
 
-    .login-btn:active {
-      transform: translateY(0);
+    .google-btn:hover:not(:disabled)::before {
+      opacity: 1;
     }
 
-    /* Google Logo Styling */
+    .google-btn:hover:not(:disabled) {
+      transform: translateY(-3px);
+      border-color: rgba(192, 132, 252, 0.3);
+      box-shadow:
+        0 12px 35px rgba(192, 132, 252, 0.2),
+        0 0 0 1px rgba(192, 132, 252, 0.1) inset;
+    }
+
+    .google-btn:active:not(:disabled) {
+      transform: translateY(-1px) scale(0.98);
+    }
+
+    .google-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
     .google-icon {
       width: 20px;
       height: 20px;
+      position: relative;
     }
 
+    .google-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .btn-text {
+      letter-spacing: 0.3px;
+    }
+
+    /* Loading state */
     .btn-loader {
       display: none;
-      width: 18px;
-      height: 18px;
-      border: 2.5px solid rgba(0,0,0,0.1);
-      border-top-color: #333;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
 
-    .login-btn.loading .btn-text { display: none; }
-    .login-btn.loading .google-icon { display: none; }
-    .login-btn.loading .btn-loader { display: inline-block; }
+    .google-btn.loading .btn-content { display: none; }
+    .google-btn.loading .btn-loader { display: block; }
 
-    /* ===== FOOTER / STATUS ===== */
+    /* ===== STATUS MESSAGE ===== */
     .status-area {
+      margin-top: 16px;
+      min-height: 24px;
+      animation: fadeSlideUp 0.6s ease 0.6s both;
+    }
+
+    .status-msg {
+      font-size: 13px;
+      text-align: center;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0;
+      transform: translateY(-5px);
+      transition: all 0.3s ease;
+    }
+
+    .status-msg.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .status-msg.info {
+      background: rgba(129, 140, 248, 0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(129, 140, 248, 0.2);
+    }
+
+    .status-msg.success {
+      background: rgba(52, 211, 153, 0.1);
+      color: var(--accent4);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    .status-msg.error {
+      background: rgba(248, 113, 113, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+    }
+
+    /* ===== FOOTER ===== */
+    .login-footer {
       margin-top: 24px;
-      min-height: 1.4em;
+      text-align: center;
+      font-size: 11px;
+      color: #3d3d55;
+      font-family: 'JetBrains Mono', monospace;
       animation: fadeSlideUp 0.6s ease 0.7s both;
     }
 
-    .status-text {
-      font-size: 12px;
+    .login-footer a {
       color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
+      text-decoration: none;
+      transition: color 0.2s;
     }
 
-    .status-text.error { color: #f87171; }
-    .status-text.success { color: var(--accent4); }
-
-    .meta-footer {
-      margin-top: 20px;
-      font-size: 11px;
-      color: var(--muted);
-      animation: fadeSlideUp 0.6s ease 0.8s both;
-    }
-    
-    .meta-footer strong {
+    .login-footer a:hover {
       color: var(--accent);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 28px 20px;
+        border-radius: 22px;
+      }
+      .login-title { font-size: 22px; }
+      .logo-mark { width: 56px; height: 56px; }
+      .logo-mark span { font-size: 24px; }
+    }
+
+    /* ===== LOADING DOTS ===== */
+    .loading-dots {
+      display: inline-flex;
+      gap: 3px;
+    }
+
+    .loading-dots span {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: dotBounce 1.2s ease-in-out infinite;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes dotBounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-4px); opacity: 1; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Background -->
   <div class="cyber-bg">
-    <div class="bg-glow"></div>
-    <div class="bg-glow"></div>
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
     <div class="scan-line"></div>
+    <div class="geo-shape"></div>
+    <div class="geo-shape"></div>
   </div>
   <div class="noise"></div>
 
+  <!-- Login Card -->
   <div class="login-card">
-    <div class="brand-icon">
-      <span>S</span>
+    <div class="corner-accent top-right"></div>
+    <div class="corner-accent bottom-left"></div>
+
+    <div class="login-header">
+      <div class="logo-mark">
+        <span>S</span>
+      </div>
+      <h1 class="login-title">Secure Messenger</h1>
+      <div class="login-subtitle">by muhilan</div>
     </div>
 
-    <h1>Secure Messenger</h1>
-    <p class="subtitle">End-to-end encrypted communication for the modern web.</p>
+    <div class="features-list">
+      <div class="feature-item">
+        <div class="feature-dot purple"></div>
+        End-to-end encrypted messaging
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot blue"></div>
+        Self-destructing messages
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot green"></div>
+        Zero data collection policy
+      </div>
+    </div>
 
-    <button id="googleSignIn" class="login-btn">
-      <svg class="google-icon" viewBox="0 0 24 24">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      <span class="btn-text">Continue with Google</span>
-      <div class="btn-loader"></div>
-    </button>
+    <div class="btn-wrapper">
+      <button id="googleSignIn" class="google-btn">
+        <span class="btn-content">
+          <span class="google-icon">
+            <svg viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Google</span>
+        </span>
+        <span class="btn-loader"></span>
+      </button>
+    </div>
 
     <div class="status-area">
-      <div id="status" class="status-text"></div>
+      <div id="status" class="status-msg"></div>
     </div>
 
-    <div class="meta-footer">
-      Your data is encrypted and never stored on our servers.
+    <div class="login-footer">
+      By continuing, you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a>
     </div>
   </div>
 
@@ -323,52 +607,114 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    const googleSignInBtn = document.getElementById('googleSignIn');
     const statusEl = document.getElementById('status');
-    const signInBtn = document.getElementById('googleSignIn');
 
-    function setStatus(msg, type = '') {
+    function setStatus(msg, type = 'info') {
       statusEl.textContent = msg;
-      statusEl.className = 'status-text ' + type;
+      statusEl.className = 'status-msg show ' + type;
+    }
+
+    function hideStatus() {
+      statusEl.classList.remove('show');
+    }
+
+    function setLoading(loading) {
+      if (loading) {
+        googleSignInBtn.classList.add('loading');
+        googleSignInBtn.disabled = true;
+      } else {
+        googleSignInBtn.classList.remove('loading');
+        googleSignInBtn.disabled = false;
+      }
     }
 
     async function goToNextPage(user) {
       try {
+        setStatus('Verifying profile...', 'info');
         const doc = await db.collection('users').doc(user.uid).get();
+        
         localStorage.setItem('userUID', user.uid);
         localStorage.setItem('userEmail', user.email || '');
         localStorage.setItem('userName', user.displayName || '');
         
         if (doc.exists && doc.data().username && doc.data().phone) {
-          window.location.href = 'chats.html';
+          setStatus('Welcome back! Redirecting...', 'success');
+          setTimeout(() => {
+            window.location.href = 'chats.html';
+          }, 800);
         } else {
-          window.location.href = 'setup.html';
+          setStatus('Setting up your profile...', 'success');
+          setTimeout(() => {
+            window.location.href = 'setup.html';
+          }, 800);
         }
       } catch (e) {
-        setStatus('Error loading profile: ' + e.message, 'error');
-        signInBtn.classList.remove('loading');
+        console.error('Profile check error:', e);
+        setStatus('Error: ' + e.message, 'error');
+        setLoading(false);
       }
     }
 
-    signInBtn.addEventListener('click', async () => {
+    googleSignInBtn.addEventListener('click', async () => {
+      setLoading(true);
+      hideStatus();
+      
       try {
-        setStatus('Authenticating...', '');
-        signInBtn.classList.add('loading');
-        
         const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
         
         await goToNextPage(user);
       } catch (err) {
-        setStatus(`Error: ${err.message}`, 'error');
-        signInBtn.classList.remove('loading');
+        console.error('Sign-in error:', err);
+        
+        let errorMsg = err.message;
+        if (err.code === 'auth/popup-closed-by-user') {
+          errorMsg = 'Sign-in cancelled';
+        } else if (err.code === 'auth/network-request-failed') {
+          errorMsg = 'Network error. Check connection.';
+        }
+        
+        setStatus(errorMsg, 'error');
+        setLoading(false);
+        
+        // Shake animation on error
+        googleSignInBtn.style.animation = 'shake 0.5s ease';
+        setTimeout(() => {
+          googleSignInBtn.style.animation = '';
+        }, 500);
       }
     });
 
+    // Add shake animation dynamically
+    const shakeStyle = document.createElement('style');
+    shakeStyle.textContent = `
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-8px); }
+        40% { transform: translateX(8px); }
+        60% { transform: translateX(-6px); }
+        80% { transform: translateX(6px); }
+      }
+    `;
+    document.head.appendChild(shakeStyle);
+
+    // Auto-redirect if already signed in
     auth.onAuthStateChanged((user) => {
       if (user) {
-        setStatus('Redirecting...', 'success');
+        setLoading(true);
         goToNextPage(user);
+      }
+    });
+
+    // Enter key support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !googleSignInBtn.disabled) {
+        googleSignInBtn.click();
       }
     });
   </script>
