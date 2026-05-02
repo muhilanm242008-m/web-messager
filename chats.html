@@ -1066,11 +1066,17 @@
     const toastContainer = document.getElementById('toastContainer');
 
     // ===== SERVICE WORKER REGISTRATION =====
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then(reg => console.log('SW registered:', reg.scope))
-        .catch(err => console.warn('SW failed:', err));
-    }
+// Safe Service Worker Registration
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then(reg => {
+      console.log('✅ SW registered:', reg.scope);
+    })
+    .catch(err => {
+      // Silently fail - SW is optional, app still works
+      console.warn('SW registration skipped:', err.message);
+    });
+}
 
     // ===== NOTIFICATION SOUND =====
     function playNotifSound() {
