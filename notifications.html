@@ -72,6 +72,7 @@
       100% { transform: translate(30px,-30px) scale(1.1); }
     }
 
+    /* NAV */
     .top-nav {
       position: sticky; top: 0; z-index: 50;
       padding: 12px 18px;
@@ -105,6 +106,7 @@
       border-color: rgba(248,113,113,.3);
     }
 
+    /* MAIN */
     .main {
       position: relative; z-index: 1;
       max-width: 680px; margin: 0 auto;
@@ -154,8 +156,7 @@
     .fcm-status {
       display: none; align-items: center; gap: 12px;
       padding: 12px 16px; margin-bottom: 16px;
-      border-radius: 14px; font-size: 13px;
-      line-height: 1.4;
+      border-radius: 14px; font-size: 13px; line-height: 1.5;
     }
     .fcm-status.show { display: flex; }
     .fcm-status.success {
@@ -178,16 +179,17 @@
     .debug-panel {
       padding: 12px 16px; margin-bottom: 16px;
       border-radius: 14px; font-size: 11px;
-      background: rgba(0,0,0,.3);
+      background: rgba(0,0,0,.4);
       border: 1px solid var(--border);
       font-family: 'JetBrains Mono', monospace;
       color: var(--muted); display: none;
+      max-height: 200px; overflow-y: auto;
     }
     .debug-panel.show { display: block; }
-    .debug-panel div { margin-bottom: 4px; }
-    .debug-panel .ok  { color: var(--success); }
-    .debug-panel .err { color: var(--danger); }
-    .debug-panel .warn{ color: var(--warning); }
+    .debug-panel div { margin-bottom: 3px; padding: 1px 0; }
+    .debug-panel .ok   { color: var(--success); }
+    .debug-panel .err  { color: var(--danger); }
+    .debug-panel .warn { color: var(--warning); }
 
     /* STATS */
     .stats-row {
@@ -257,6 +259,7 @@
     .setting-text .label { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
     .setting-text .sub   { font-size: 12px; color: var(--muted); }
 
+    /* TOKEN ROW */
     .token-row {
       padding: 12px 18px;
       border-top: 1px solid rgba(35,35,64,.5);
@@ -274,6 +277,7 @@
       word-break: break-all; line-height: 1.5;
       padding: 8px; border-radius: 8px;
       background: var(--surface); border: 1px solid var(--border);
+      cursor: pointer;
     }
     .token-value.active { color: var(--accent2); }
 
@@ -357,8 +361,7 @@
     }
     .notif-card.unread {
       border-color: rgba(192,132,252,.15);
-      background: linear-gradient(135deg,
-        rgba(14,14,24,1), rgba(20,20,34,1));
+      background: linear-gradient(135deg,rgba(14,14,24,1),rgba(20,20,34,1));
     }
     .notif-card.unread::before {
       content: ''; position: absolute;
@@ -581,8 +584,6 @@
   </div>
 
   <div class="fcm-status" id="fcmStatus"></div>
-
-  <!-- Debug panel - shows SW path info -->
   <div class="debug-panel" id="debugPanel"></div>
 
   <button class="test-btn" id="testNotifBtn">🔔 Send Test Notification</button>
@@ -675,7 +676,11 @@
       </div>
       <div class="token-row" id="tokenRow" style="display:none">
         <div class="token-label">FCM Device Token</div>
-        <div class="token-value" id="tokenValue">Not registered</div>
+        <div class="token-value" id="tokenValue"
+             onclick="copyToken()"
+             title="Click to copy full token">
+          Not registered
+        </div>
       </div>
     </div>
   </div>
@@ -736,9 +741,9 @@
 </div>
 
 <script>
-/* =====================================================
+/* ═══════════════════════════════════════════
    FIREBASE INIT
-===================================================== */
+═══════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey:            "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
   authDomain:        "web-messager-533ae.firebaseapp.com",
@@ -750,16 +755,16 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db   = firebase.firestore();
 
-// ✅ VAPID key as a proper string
+/* ✅ Your VAPID key from Firebase Console →
+   Project Settings → Cloud Messaging → Web Push certificates */
 const VAPID_KEY = 'BPV2cE31TAcPONIrU0ureplOc-rX3tkv5OxGUBIvxxxnuWL3JpyzaPLUVk6EpDCKv6UjiopP6VI9nKEIExCBLjo';
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    STATE
-===================================================== */
+═══════════════════════════════════════════ */
 let currentUserUID    = null;
 let allNotifications  = [];
 let currentFilter     = 'all';
@@ -768,76 +773,62 @@ const PAGE_SIZE       = 20;
 let unsubscribeNotifs = null;
 let messagingInstance = null;
 let fcmToken          = null;
+let swRegistration    = null; // ✅ Store SW registration globally
 
-/* =====================================================
-   DEBUG HELPER
-===================================================== */
+/* ═══════════════════════════════════════════
+   DEBUG LOGGER
+═══════════════════════════════════════════ */
 function debugLog(msg, type = 'info') {
   const panel = document.getElementById('debugPanel');
   panel.classList.add('show');
   const line = document.createElement('div');
-  line.className = type; // 'ok', 'err', 'warn'
+  line.className   = type;
   line.textContent = '› ' + msg;
   panel.appendChild(line);
-  console.log('[Debug]', msg);
+  console.log('[FCM]', msg);
 }
 
-/* =====================================================
-   GET SERVICE WORKER PATH
-   Automatically detects the correct path based on
-   where the page is being served from
-===================================================== */
+/* ═══════════════════════════════════════════
+   GET SW PATH (auto-detects /web-messager/)
+═══════════════════════════════════════════ */
 function getServiceWorkerPath() {
-  const loc      = window.location;
-  const pathname = loc.pathname;
-
-  // Split path and remove the HTML filename
-  const parts    = pathname.split('/').filter(Boolean);
-
-  // If last part has a dot, it's a file — remove it
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  // Remove filename if present (e.g. notifications.html)
   if (parts.length > 0 && parts[parts.length - 1].includes('.')) {
     parts.pop();
   }
-
-  // Build base path
   const basePath = parts.length > 0 ? '/' + parts.join('/') : '';
-  const swPath   = basePath + '/firebase-messaging-sw.js';
-
-  debugLog('Page URL: ' + loc.href);
-  debugLog('Detected SW path: ' + swPath);
-
-  return swPath;
+  return basePath + '/firebase-messaging-sw.js';
 }
 
-/* =====================================================
-   VERIFY SW FILE EXISTS before registering
-===================================================== */
+/* ═══════════════════════════════════════════
+   CHECK SW FILE EXISTS
+═══════════════════════════════════════════ */
 async function checkSWExists(swPath) {
   try {
     const resp = await fetch(swPath, { method: 'HEAD' });
     if (resp.ok) {
-      debugLog('SW file found ✅ (HTTP ' + resp.status + ')', 'ok');
+      debugLog(`SW file found ✅ (HTTP ${resp.status})`, 'ok');
       return true;
-    } else {
-      debugLog('SW file NOT found ❌ (HTTP ' + resp.status + ')', 'err');
-      return false;
     }
+    debugLog(`SW file NOT found ❌ (HTTP ${resp.status}) at ${swPath}`, 'err');
+    return false;
   } catch (e) {
-    debugLog('SW fetch check failed: ' + e.message, 'err');
+    debugLog('SW file check error: ' + e.message, 'err');
     return false;
   }
 }
 
-/* =====================================================
-   FCM INIT
-===================================================== */
+/* ═══════════════════════════════════════════
+   INIT FCM
+═══════════════════════════════════════════ */
 async function initFCM() {
   if (!('serviceWorker' in navigator)) {
-    showFCMStatus('error', '⚠️ Service workers not supported in this browser');
+    showFCMStatus('error', '⚠️ Service Workers not supported in this browser');
     return;
   }
   if (!('PushManager' in window)) {
-    showFCMStatus('error', '⚠️ Push notifications not supported');
+    showFCMStatus('error', '⚠️ Push notifications not supported in this browser');
     return;
   }
   if (!('Notification' in window)) {
@@ -847,38 +838,39 @@ async function initFCM() {
 
   try {
     const swPath = getServiceWorkerPath();
+    debugLog('Page: ' + window.location.href);
+    debugLog('SW path: ' + swPath);
 
-    // ✅ Check if SW file actually exists first
-    const swExists = await checkSWExists(swPath);
-    if (!swExists) {
+    // Verify file exists
+    const exists = await checkSWExists(swPath);
+    if (!exists) {
       showFCMStatus('error',
-        `⚠️ firebase-messaging-sw.js not found at: ${swPath} — ` +
-        `Make sure the file is in the correct folder in your GitHub repo.`
+        `⚠️ firebase-messaging-sw.js not found at "${swPath}". ` +
+        `Make sure the file exists in your /web-messager/ folder on GitHub.`
       );
       return;
     }
 
-    // Register SW
-    const swReg = await navigator.serviceWorker.register(swPath, {
+    // ✅ Register SW and store reference globally
+    swRegistration = await navigator.serviceWorker.register(swPath, {
       updateViaCache: 'none'
     });
+    debugLog('SW registered: ' + swRegistration.scope, 'ok');
 
-    debugLog('SW registered: ' + swReg.scope, 'ok');
-
-    // Wait for SW to be ready
+    // Wait until SW is fully active
     await navigator.serviceWorker.ready;
     debugLog('SW ready ✅', 'ok');
 
-    // Init FCM messaging
+    // Init messaging
     messagingInstance = firebase.messaging();
 
-    // Foreground messages
+    // Foreground message handler
     messagingInstance.onMessage(payload => {
-      debugLog('Foreground message received');
+      debugLog('📨 Foreground message received');
       handleForegroundMessage(payload);
     });
 
-    // SW click messages
+    // Handle SW → page messages (notification clicks)
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'NOTIFICATION_CLICK') {
         const data = e.data.data || {};
@@ -892,7 +884,6 @@ async function initFCM() {
       }
     });
 
-    // Check permission state
     debugLog('Notification permission: ' + Notification.permission);
 
     if (Notification.permission === 'granted') {
@@ -901,36 +892,51 @@ async function initFCM() {
       document.getElementById('permissionBanner').classList.add('show');
     } else {
       showFCMStatus('error',
-        '🚫 Notifications blocked. Click the 🔒 icon in your address bar → ' +
-        'Site settings → Notifications → Allow');
+        '🚫 Notifications blocked. Click 🔒 in address bar → Site settings → Allow Notifications.');
     }
 
   } catch (err) {
-    console.error('FCM init error:', err);
-    debugLog('FCM init error: ' + err.message, 'err');
+    console.error('initFCM error:', err);
+    debugLog('initFCM error: ' + err.message, 'err');
     showFCMStatus('error', '⚠️ Push setup failed: ' + err.message);
   }
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    GET & SAVE FCM TOKEN
-===================================================== */
+   ✅ KEY FIX: passes serviceWorkerRegistration
+      so Firebase uses YOUR SW not the root one
+═══════════════════════════════════════════ */
 async function getAndSaveFCMToken() {
   if (!messagingInstance || !currentUserUID) return;
 
   try {
-    showFCMStatus('info', '⟳ Getting push token...');
+    showFCMStatus('info', '⟳ Getting push notification token...');
+
+    if (!swRegistration) {
+      showFCMStatus('error', '⚠️ SW not registered. Please refresh the page.');
+      debugLog('swRegistration is null', 'err');
+      return;
+    }
+
+    debugLog('Using SW scope: ' + swRegistration.scope, 'ok');
 
     let token;
     try {
-      token = await messagingInstance.getToken({ vapidKey: VAPID_KEY });
+      // ✅ THE CRITICAL FIX:
+      // Pass serviceWorkerRegistration to prevent Firebase from
+      // trying to register its own SW at the root (which causes 404)
+      token = await messagingInstance.getToken({
+        vapidKey:                  VAPID_KEY,
+        serviceWorkerRegistration: swRegistration
+      });
     } catch (tokenErr) {
-      console.error('getToken failed:', tokenErr);
-      debugLog('getToken error: ' + tokenErr.code + ' - ' + tokenErr.message, 'err');
+      console.error('getToken error:', tokenErr);
+      debugLog(`getToken failed: ${tokenErr.code} — ${tokenErr.message}`, 'err');
 
       if (tokenErr.code === 'messaging/permission-blocked') {
         showFCMStatus('error',
-          '🚫 Notifications blocked. Enable in browser settings → Site permissions.');
+          '🚫 Notifications blocked. Click 🔒 → Site settings → Notifications → Allow.');
       } else if (tokenErr.code === 'messaging/unsupported-browser') {
         showFCMStatus('error', '⚠️ This browser does not support push notifications.');
       } else {
@@ -940,17 +946,19 @@ async function getAndSaveFCMToken() {
     }
 
     if (!token) {
-      showFCMStatus('error', '⚠️ Empty token. Check your VAPID key in Firebase Console.');
-      debugLog('Token is empty/null', 'err');
+      debugLog('Received empty token', 'err');
+      showFCMStatus('error',
+        '⚠️ Empty token received. Verify your VAPID key in Firebase Console → ' +
+        'Project Settings → Cloud Messaging → Web Push certificates.');
       return;
     }
 
     fcmToken = token;
-    debugLog('FCM token obtained ✅ (' + token.substring(0, 20) + '...)', 'ok');
+    debugLog('✅ Token: ' + token.substring(0, 25) + '...', 'ok');
 
     const TS = firebase.firestore.FieldValue.serverTimestamp();
 
-    // Save to user document
+    // Save to user doc
     await db.collection('users').doc(currentUserUID).set({
       fcmTokens:        firebase.firestore.FieldValue.arrayUnion(fcmToken),
       notifPermission:  'granted',
@@ -958,7 +966,7 @@ async function getAndSaveFCMToken() {
       lastTokenRefresh: TS
     }, { merge: true });
 
-    // Save to fcmTokens collection
+    // Save to dedicated tokens collection (for server-side sending)
     await db.collection('fcmTokens').doc(currentUserUID).set({
       uid:       currentUserUID,
       token:     fcmToken,
@@ -968,42 +976,62 @@ async function getAndSaveFCMToken() {
 
     debugLog('Token saved to Firestore ✅', 'ok');
 
-    // Show token in UI
-    document.getElementById('tokenRow').style.display = 'block';
+    // Show in UI
+    const tokenRow = document.getElementById('tokenRow');
     const tokenVal = document.getElementById('tokenValue');
-    tokenVal.className   = 'token-value active';
-    tokenVal.textContent = fcmToken.substring(0, 50) + '...';
-    tokenVal.title       = fcmToken;
+    tokenRow.style.display = 'block';
+    tokenVal.className     = 'token-value active';
+    tokenVal.textContent   = fcmToken.substring(0, 50) + '... (click to copy)';
+    tokenVal.title         = 'Click to copy: ' + fcmToken;
 
+    // Hide permission banner
     document.getElementById('permissionBanner').classList.remove('show');
 
     showFCMStatus('success',
-      '✅ Push notifications enabled! You\'ll get alerts even when the app is closed.');
-    setTimeout(hideFCMStatus, 5000);
+      '✅ Push notifications enabled! You\'ll receive alerts even when the app is closed.');
+    setTimeout(hideFCMStatus, 6000);
 
+    // Show test button
     document.getElementById('testNotifBtn').classList.add('show');
 
   } catch (err) {
     console.error('getAndSaveFCMToken error:', err);
-    debugLog('Save token error: ' + err.message, 'err');
+    debugLog('Error: ' + err.message, 'err');
     showFCMStatus('error', '⚠️ Registration failed: ' + err.message);
   }
 }
 
-/* =====================================================
-   FOREGROUND MESSAGE
-===================================================== */
+/* ═══════════════════════════════════════════
+   COPY TOKEN TO CLIPBOARD
+═══════════════════════════════════════════ */
+function copyToken() {
+  if (!fcmToken) return;
+  navigator.clipboard.writeText(fcmToken)
+    .then(() => {
+      const el = document.getElementById('tokenValue');
+      el.textContent = '✅ Token copied to clipboard!';
+      setTimeout(() => {
+        el.textContent = fcmToken.substring(0, 50) + '... (click to copy)';
+      }, 2000);
+    })
+    .catch(() => {});
+}
+
+/* ═══════════════════════════════════════════
+   FOREGROUND MESSAGE HANDLER
+═══════════════════════════════════════════ */
 function handleForegroundMessage(payload) {
   const notification = payload.notification || {};
   const data         = payload.data         || {};
   const title        = notification.title   || 'Secure Messenger';
   const body         = notification.body    || '';
 
+  // Show native notification even when app is open
   if (Notification.permission === 'granted') {
     try {
       const n = new Notification(title, {
         body,
-        icon: '/icon.png',
+        icon: '/web-messager/icon.png',
         tag:  data.tag || ('fg-' + Date.now())
       });
       n.onclick = () => {
@@ -1018,10 +1046,11 @@ function handleForegroundMessage(payload) {
         n.close();
       };
     } catch (e) {
-      console.warn('Notification show error:', e);
+      console.warn('Notification error:', e);
     }
   }
 
+  // Save to Firestore so it appears in the list
   if (currentUserUID && data.saveToFirestore !== 'false') {
     db.collection('users').doc(currentUserUID)
       .collection('notifications').add({
@@ -1032,13 +1061,13 @@ function handleForegroundMessage(payload) {
         fromUid:      data.fromUid      || null,
         read:         false,
         createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(e => console.warn('Save notification:', e));
+      }).catch(e => console.warn('Save notif error:', e));
   }
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    REQUEST PERMISSION
-===================================================== */
+═══════════════════════════════════════════ */
 async function requestPushPermission() {
   const btn = document.getElementById('enableNotifBtn');
   btn.disabled    = true;
@@ -1049,6 +1078,7 @@ async function requestPushPermission() {
     try {
       permission = await Notification.requestPermission();
     } catch (_) {
+      // Fallback for older browsers
       permission = await new Promise(resolve =>
         Notification.requestPermission(resolve)
       );
@@ -1060,27 +1090,28 @@ async function requestPushPermission() {
       await getAndSaveFCMToken();
     } else if (permission === 'denied') {
       showFCMStatus('error',
-        '🚫 Denied. Click the 🔒 icon in your browser address bar → ' +
-        'Site settings → Notifications → Allow');
+        '🚫 Notifications denied. Click 🔒 in your address bar → ' +
+        'Site settings → Notifications → Allow.');
       document.getElementById('permissionBanner').classList.remove('show');
       btn.disabled    = false;
       btn.textContent = 'Enable';
     } else {
+      // Dismissed - let them try again
       btn.disabled    = false;
       btn.textContent = 'Enable';
     }
   } catch (e) {
     console.error('requestPushPermission:', e);
-    debugLog('Permission request error: ' + e.message, 'err');
-    showFCMStatus('error', '⚠️ Could not request permission: ' + e.message);
+    debugLog('Permission error: ' + e.message, 'err');
+    showFCMStatus('error', '⚠️ Permission request failed: ' + e.message);
     btn.disabled    = false;
     btn.textContent = 'Enable';
   }
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    TEST NOTIFICATION
-===================================================== */
+═══════════════════════════════════════════ */
 async function sendTestNotification() {
   if (Notification.permission !== 'granted') {
     alert('Please enable notifications first.');
@@ -1088,10 +1119,12 @@ async function sendTestNotification() {
   }
 
   const btn = document.getElementById('testNotifBtn');
+  const orig = btn.textContent;
   btn.textContent = '⏳ Sending...';
   btn.disabled    = true;
 
   try {
+    // Add to Firestore
     if (currentUserUID) {
       await db.collection('users').doc(currentUserUID)
         .collection('notifications').add({
@@ -1103,36 +1136,37 @@ async function sendTestNotification() {
         });
     }
 
+    // Show browser notification via SW
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification('Secure Messenger', {
-      body:               '🔔 Test notification! Push is working correctly.',
-      icon:               '/icon.png',
+      body:               '🔔 Test! Push notifications are working correctly.',
+      icon:               '/web-messager/icon.png',
       tag:                'test-' + Date.now(),
       vibrate:            [200, 100, 200],
       requireInteraction: false
     });
 
-    btn.textContent = '✅ Sent!';
     debugLog('Test notification sent ✅', 'ok');
+    btn.textContent = '✅ Sent!';
     setTimeout(() => {
-      btn.textContent = '🔔 Send Test Notification';
+      btn.textContent = orig;
       btn.disabled    = false;
     }, 2000);
 
   } catch (e) {
     console.error('sendTestNotification:', e);
-    debugLog('Test notification error: ' + e.message, 'err');
-    btn.textContent = '❌ Failed - ' + e.message;
+    debugLog('Test error: ' + e.message, 'err');
+    btn.textContent = '❌ Failed';
     setTimeout(() => {
-      btn.textContent = '🔔 Send Test Notification';
+      btn.textContent = orig;
       btn.disabled    = false;
     }, 3000);
   }
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    FCM STATUS UI
-===================================================== */
+═══════════════════════════════════════════ */
 function showFCMStatus(type, msg) {
   const el     = document.getElementById('fcmStatus');
   el.className = `fcm-status show ${type}`;
@@ -1142,9 +1176,9 @@ function hideFCMStatus() {
   document.getElementById('fcmStatus').classList.remove('show');
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    SETTINGS
-===================================================== */
+═══════════════════════════════════════════ */
 let notifSettings = {
   messages: true, requests: true, calls: true,
   sound: true, vibrate: true
@@ -1190,9 +1224,9 @@ document.getElementById('settingsToggleBtn').onclick = () => {
     settingsCollapsed ? 'Show ▼' : 'Hide ▲';
 };
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    HELPERS
-===================================================== */
+═══════════════════════════════════════════ */
 function safeText(str) {
   const d = document.createElement('div');
   d.textContent = str || '';
@@ -1242,9 +1276,9 @@ function getNotifConfig(type) {
   return map[type] || map.system;
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    STATS
-===================================================== */
+═══════════════════════════════════════════ */
 function updateStats(notifs) {
   document.getElementById('totalCount').textContent  = notifs.length;
   document.getElementById('unreadCount').textContent = notifs.filter(n => !n.read).length;
@@ -1257,9 +1291,9 @@ function updateStats(notifs) {
     notifs.filter(n => n.type === 'system' || n.type === 'security').length;
 }
 
-/* =====================================================
-   RENDER
-===================================================== */
+/* ═══════════════════════════════════════════
+   FILTER
+═══════════════════════════════════════════ */
 function getFiltered() {
   if (currentFilter === 'all') return allNotifications;
   if (currentFilter === 'system')
@@ -1267,6 +1301,9 @@ function getFiltered() {
   return allNotifications.filter(n => n.type === currentFilter);
 }
 
+/* ═══════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════ */
 function renderNotifications() {
   const list     = document.getElementById('notifList');
   const empty    = document.getElementById('emptyState');
@@ -1291,6 +1328,7 @@ function renderNotifications() {
   empty.classList.remove('show');
   list.innerHTML = '';
 
+  // Group by date
   const groups = {};
   const order  = [];
   toShow.forEach(n => {
@@ -1316,6 +1354,9 @@ function renderNotifications() {
   });
 }
 
+/* ═══════════════════════════════════════════
+   BUILD NOTIFICATION CARD
+═══════════════════════════════════════════ */
 function buildCard(notif, animIdx) {
   const cfg      = getNotifConfig(notif.type);
   const isUnread = !notif.read;
@@ -1325,6 +1366,7 @@ function buildCard(notif, animIdx) {
   card.dataset.id = notif.id;
   card.style.animationDelay = (animIdx * 0.04) + 's';
 
+  // Icon
   const iconEl      = document.createElement('div');
   iconEl.className  = `notif-icon ${cfg.iconClass}`;
   iconEl.textContent = cfg.icon;
@@ -1334,11 +1376,12 @@ function buildCard(notif, animIdx) {
     iconEl.appendChild(dot);
   }
 
-  const bodyEl      = document.createElement('div');
-  bodyEl.className  = 'notif-body';
+  // Body
+  const bodyEl     = document.createElement('div');
+  bodyEl.className = 'notif-body';
 
-  const topEl       = document.createElement('div');
-  topEl.className   = 'notif-top';
+  const topEl      = document.createElement('div');
+  topEl.className  = 'notif-top';
 
   const senderEl      = document.createElement('div');
   senderEl.className   = 'notif-sender';
@@ -1363,6 +1406,7 @@ function buildCard(notif, animIdx) {
   bodyEl.appendChild(previewEl);
   bodyEl.appendChild(badgeEl);
 
+  // Action buttons
   const actEl     = document.createElement('div');
   actEl.className = 'notif-actions';
 
@@ -1386,9 +1430,10 @@ function buildCard(notif, animIdx) {
 
   bodyEl.appendChild(actEl);
 
+  // Delete button
   const delBtn      = document.createElement('button');
   delBtn.className  = 'notif-delete-btn';
-  delBtn.title      = 'Delete';
+  delBtn.title      = 'Delete notification';
   delBtn.textContent = '✕';
   delBtn.addEventListener('click', async e => {
     e.stopPropagation();
@@ -1399,16 +1444,21 @@ function buildCard(notif, animIdx) {
   card.appendChild(bodyEl);
   card.appendChild(delBtn);
 
+  // Card click → expand or navigate
   card.addEventListener('click', async e => {
     if (e.target.closest('.notif-act-btn') || e.target.closest('.notif-delete-btn')) return;
+
     if (isUnread) {
       await markAsRead(notif.id);
       card.classList.remove('unread');
       card.querySelector('.unread-dot')?.remove();
     }
+
     if (notif.type === 'message' && notif.chatFriendId) {
-      navigateToChat(notif); return;
+      navigateToChat(notif);
+      return;
     }
+
     card.classList.toggle('expanded');
   });
 
@@ -1424,6 +1474,9 @@ function makeBtn(action, label, extraClass) {
   return b;
 }
 
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
 function navigateToChat(notif) {
   if (!notif.chatFriendId) return;
   localStorage.setItem('selectedFriend', JSON.stringify({
@@ -1436,11 +1489,16 @@ function navigateToChat(notif) {
   window.location.href = 'chat.html';
 }
 
+/* ═══════════════════════════════════════════
+   SWIPE TO DISMISS
+═══════════════════════════════════════════ */
 function addSwipeToDismiss(card, notifId) {
   let startX = 0, currentX = 0, dragging = false;
+
   card.addEventListener('touchstart', e => {
     startX = e.touches[0].clientX; dragging = true;
   }, { passive: true });
+
   card.addEventListener('touchmove', e => {
     if (!dragging) return;
     currentX = e.touches[0].clientX - startX;
@@ -1449,23 +1507,31 @@ function addSwipeToDismiss(card, notifId) {
       card.style.opacity   = String(Math.max(0, 1 + currentX / card.offsetWidth));
     }
   }, { passive: true });
+
   card.addEventListener('touchend', () => {
     dragging = false;
-    if (currentX < -100) deleteNotification(notifId, card);
-    else { card.style.transform = ''; card.style.opacity = ''; }
+    if (currentX < -100) {
+      deleteNotification(notifId, card);
+    } else {
+      card.style.transform = '';
+      card.style.opacity   = '';
+    }
     currentX = 0;
   });
 }
 
-/* =====================================================
-   FIRESTORE OPS
-===================================================== */
+/* ═══════════════════════════════════════════
+   FIRESTORE OPERATIONS
+═══════════════════════════════════════════ */
 async function markAsRead(notifId) {
   if (!currentUserUID) return;
   try {
     await db.collection('users').doc(currentUserUID)
       .collection('notifications').doc(notifId)
-      .update({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
+      .update({
+        read:   true,
+        readAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
   } catch (e) { console.warn('markAsRead:', e.message); }
 }
 
@@ -1479,6 +1545,7 @@ async function deleteNotification(notifId, card) {
     if (!document.querySelector('.notif-card'))
       document.getElementById('emptyState').classList.add('show');
   }, 420);
+
   try {
     await db.collection('users').doc(currentUserUID)
       .collection('notifications').doc(notifId).delete();
@@ -1489,7 +1556,9 @@ async function handleAction(notif, action, card) {
   const TS = firebase.firestore.FieldValue.serverTimestamp();
 
   if (action === 'open') {
-    await markAsRead(notif.id); navigateToChat(notif); return;
+    await markAsRead(notif.id);
+    navigateToChat(notif);
+    return;
   }
 
   if (action === 'accept' && notif.type === 'request') {
@@ -1502,36 +1571,54 @@ async function handleAction(notif, action, card) {
 
       if (!snap.empty) {
         await snap.docs[0].ref.update({ status: 'accepted', updatedAt: TS });
+
         const batch = db.batch();
         batch.set(
-          db.collection('users').doc(currentUserUID).collection('friends').doc(notif.fromUid),
-          { friendUid: notif.fromUid, friendName: notif.fromName || '',
-            friendUsername: notif.fromUsername || '', createdAt: TS },
+          db.collection('users').doc(currentUserUID)
+            .collection('friends').doc(notif.fromUid),
+          { friendUid:      notif.fromUid,
+            friendName:     notif.fromName     || '',
+            friendUsername: notif.fromUsername || '',
+            createdAt:      TS },
           { merge: true }
         );
         batch.set(
-          db.collection('users').doc(notif.fromUid).collection('friends').doc(currentUserUID),
-          { friendUid: currentUserUID, createdAt: TS }, { merge: true }
+          db.collection('users').doc(notif.fromUid)
+            .collection('friends').doc(currentUserUID),
+          { friendUid: currentUserUID, createdAt: TS },
+          { merge: true }
         );
         await batch.commit();
 
         const chatId = [currentUserUID, notif.fromUid].sort().join('_');
         await db.collection('chats').doc(chatId).set(
-          { participants: [currentUserUID, notif.fromUid], createdAt: TS }, { merge: true }
+          { participants: [currentUserUID, notif.fromUid], createdAt: TS },
+          { merge: true }
         );
-        await db.collection('users').doc(notif.fromUid).collection('notifications').add({
-          type: 'system', fromName: 'Secure Messenger',
-          body: 'Your friend request was accepted!',
-          chatFriendId: currentUserUID, read: false, createdAt: TS
-        });
+
+        await db.collection('users').doc(notif.fromUid)
+          .collection('notifications').add({
+            type:         'system',
+            fromName:     'Secure Messenger',
+            body:         'Your friend request was accepted! You can now chat securely.',
+            chatFriendId: currentUserUID,
+            read:         false,
+            createdAt:    TS
+          });
       }
+
       await markAsRead(notif.id);
       card.remove();
       localStorage.setItem('selectedFriend', JSON.stringify({
-        id: notif.fromUid, name: notif.fromName || ''
+        id:   notif.fromUid,
+        name: notif.fromName || ''
       }));
       window.location.href = 'chat.html';
-    } catch (e) { alert('Failed to accept: ' + e.message); }
+
+    } catch (e) {
+      console.error('accept error:', e);
+      alert('Failed to accept: ' + e.message);
+    }
     return;
   }
 
@@ -1544,43 +1631,56 @@ async function handleAction(notif, action, card) {
         .limit(1).get();
       if (!snap.empty)
         await snap.docs[0].ref.update({ status: 'rejected', updatedAt: TS });
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn('reject error:', e); }
     await deleteNotification(notif.id, card);
     return;
   }
 
-  if (action === 'dismiss') await deleteNotification(notif.id, card);
+  if (action === 'dismiss') {
+    await deleteNotification(notif.id, card);
+  }
 }
 
 async function markAllRead() {
   const unread = allNotifications.filter(n => !n.read);
   if (!currentUserUID || !unread.length) return;
+
   const batch = db.batch();
   unread.forEach(n => batch.update(
-    db.collection('users').doc(currentUserUID).collection('notifications').doc(n.id),
+    db.collection('users').doc(currentUserUID)
+      .collection('notifications').doc(n.id),
     { read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }
   ));
+
   try {
     await batch.commit();
-    document.querySelectorAll('.notif-card.unread').forEach(card => {
-      card.classList.remove('unread');
-      card.querySelector('.unread-dot')?.remove();
+    document.querySelectorAll('.notif-card.unread').forEach(c => {
+      c.classList.remove('unread');
+      c.querySelector('.unread-dot')?.remove();
     });
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error('markAllRead:', e); }
 }
 
 async function clearAll() {
   if (!currentUserUID) return;
   const filtered = getFiltered();
   if (!filtered.length) return;
-  if (!confirm(`Delete ${filtered.length} notification${filtered.length !== 1 ? 's' : ''}?`)) return;
+  if (!confirm(
+    `Delete ${filtered.length} notification${filtered.length !== 1 ? 's' : ''}?`
+  )) return;
+
   const batch = db.batch();
   filtered.forEach(n => batch.delete(
-    db.collection('users').doc(currentUserUID).collection('notifications').doc(n.id)
+    db.collection('users').doc(currentUserUID)
+      .collection('notifications').doc(n.id)
   ));
-  try { await batch.commit(); } catch (e) { console.error(e); }
+  try { await batch.commit(); }
+  catch (e) { console.error('clearAll:', e); }
 }
 
+/* ═══════════════════════════════════════════
+   LOAD NOTIFICATIONS (real-time)
+═══════════════════════════════════════════ */
 function loadNotifications() {
   if (!currentUserUID) return;
   if (unsubscribeNotifs) unsubscribeNotifs();
@@ -1607,14 +1707,14 @@ function loadNotifications() {
         empty.innerHTML = `
           <div class="empty-icon">🔐</div>
           <div class="empty-title">Permission Denied</div>
-          <div class="empty-sub">Update Firestore security rules.</div>`;
+          <div class="empty-sub">Update your Firestore security rules.</div>`;
       }
     });
 }
 
-/* =====================================================
+/* ═══════════════════════════════════════════
    EVENT BINDINGS
-===================================================== */
+═══════════════════════════════════════════ */
 document.getElementById('filterTabs').addEventListener('click', e => {
   const tab = e.target.closest('.filter-tab');
   if (!tab) return;
@@ -1635,9 +1735,9 @@ document.getElementById('clearAllBtn').addEventListener('click', clearAll);
 document.getElementById('enableNotifBtn').addEventListener('click', requestPushPermission);
 document.getElementById('testNotifBtn').addEventListener('click', sendTestNotification);
 
-/* =====================================================
-   AUTH
-===================================================== */
+/* ═══════════════════════════════════════════
+   AUTH GATE
+═══════════════════════════════════════════ */
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = 'index.html'; return; }
   currentUserUID = user.uid;
