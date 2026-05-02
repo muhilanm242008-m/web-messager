@@ -1068,7 +1068,7 @@
     // ===== SERVICE WORKER REGISTRATION =====
 // Safe Service Worker Registration
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+  navigator.serviceWorker.register('firebase-messaging-sw.js')
     .then(reg => {
       console.log('✅ SW registered:', reg.scope);
     })
