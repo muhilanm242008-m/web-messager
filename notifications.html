@@ -48,22 +48,30 @@
       content: '';
       position: absolute; inset: 0;
       background:
-        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(192,132,252,.015) 60px),
-        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(192,132,252,.015) 60px);
+        repeating-linear-gradient(0deg, transparent, transparent 59px,
+          rgba(192,132,252,.015) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px,
+          rgba(192,132,252,.015) 60px);
     }
     .bg-blob {
       position: absolute; border-radius: 50%;
       filter: blur(120px); opacity: .08;
       animation: blobDrift 20s ease-in-out infinite alternate;
     }
-    .bg-blob:nth-child(1){ width:500px;height:500px;background:var(--accent);top:-15%;left:-10%; }
-    .bg-blob:nth-child(2){ width:400px;height:400px;background:var(--accent2);bottom:-10%;right:-8%;animation-delay:-8s; }
+    .bg-blob:nth-child(1){
+      width:500px; height:500px;
+      background:var(--accent); top:-15%; left:-10%;
+    }
+    .bg-blob:nth-child(2){
+      width:400px; height:400px;
+      background:var(--accent2); bottom:-10%; right:-8%;
+      animation-delay:-8s;
+    }
     @keyframes blobDrift {
       0%   { transform: translate(0,0) scale(1); }
       100% { transform: translate(30px,-30px) scale(1.1); }
     }
 
-    /* TOP NAV */
     .top-nav {
       position: sticky; top: 0; z-index: 50;
       padding: 12px 18px;
@@ -78,8 +86,8 @@
       border: 1px solid var(--border); background: var(--surface);
       color: var(--text); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; transition: all .2s; text-decoration: none;
-      font-family: inherit;
+      font-size: 16px; transition: all .2s;
+      text-decoration: none; font-family: inherit;
     }
     .back-btn:hover { background: var(--surface2); transform: translateX(-2px); }
     .nav-title { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
@@ -88,7 +96,8 @@
       padding: 7px 14px; border-radius: 10px;
       border: 1px solid var(--border); background: var(--surface);
       color: var(--muted); font-size: 12px; font-weight: 500;
-      font-family: inherit; cursor: pointer; transition: all .2s; white-space: nowrap;
+      font-family: inherit; cursor: pointer;
+      transition: all .2s; white-space: nowrap;
     }
     .nav-btn:hover { background: var(--surface2); color: var(--text); }
     .nav-btn.danger:hover {
@@ -96,7 +105,6 @@
       border-color: rgba(248,113,113,.3);
     }
 
-    /* MAIN */
     .main {
       position: relative; z-index: 1;
       max-width: 680px; margin: 0 auto;
@@ -108,10 +116,14 @@
       display: none; align-items: center; gap: 14px;
       padding: 16px 18px; margin-bottom: 20px;
       border-radius: 18px;
-      background: linear-gradient(135deg,rgba(192,132,252,.08),rgba(129,140,248,.08));
+      background: linear-gradient(135deg,
+        rgba(192,132,252,.08), rgba(129,140,248,.08));
       border: 1px solid rgba(192,132,252,.2);
     }
-    .permission-banner.show { display: flex; animation: slideDown .5s cubic-bezier(.22,1,.36,1); }
+    .permission-banner.show {
+      display: flex;
+      animation: slideDown .5s cubic-bezier(.22,1,.36,1);
+    }
     @keyframes slideDown {
       from { opacity: 0; transform: translateY(-15px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -129,17 +141,21 @@
       padding: 9px 18px; border-radius: 10px; border: none;
       background: linear-gradient(135deg,var(--accent),var(--accent2));
       color: var(--bg); font-size: 13px; font-weight: 600;
-      font-family: inherit; cursor: pointer; white-space: nowrap;
-      transition: all .2s; flex-shrink: 0;
+      font-family: inherit; cursor: pointer;
+      white-space: nowrap; transition: all .2s; flex-shrink: 0;
     }
-    .perm-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(192,132,252,.3); }
+    .perm-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(192,132,252,.3);
+    }
     .perm-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-    /* FCM STATUS BANNER */
+    /* FCM STATUS */
     .fcm-status {
       display: none; align-items: center; gap: 12px;
       padding: 12px 16px; margin-bottom: 16px;
       border-radius: 14px; font-size: 13px;
+      line-height: 1.4;
     }
     .fcm-status.show { display: flex; }
     .fcm-status.success {
@@ -157,6 +173,21 @@
       border: 1px solid rgba(129,140,248,.2);
       color: var(--accent2);
     }
+
+    /* DEBUG PANEL */
+    .debug-panel {
+      padding: 12px 16px; margin-bottom: 16px;
+      border-radius: 14px; font-size: 11px;
+      background: rgba(0,0,0,.3);
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted); display: none;
+    }
+    .debug-panel.show { display: block; }
+    .debug-panel div { margin-bottom: 4px; }
+    .debug-panel .ok  { color: var(--success); }
+    .debug-panel .err { color: var(--danger); }
+    .debug-panel .warn{ color: var(--warning); }
 
     /* STATS */
     .stats-row {
@@ -183,9 +214,12 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       line-height: 1; margin-bottom: 4px;
     }
-    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .stat-label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .8px;
+    }
 
-    /* SETTINGS CARD */
+    /* SETTINGS */
     .settings-card {
       margin-bottom: 20px; border-radius: 20px;
       background: var(--card); border: 1px solid var(--border);
@@ -223,7 +257,6 @@
     .setting-text .label { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
     .setting-text .sub   { font-size: 12px; color: var(--muted); }
 
-    /* FCM Token display */
     .token-row {
       padding: 12px 18px;
       border-top: 1px solid rgba(35,35,64,.5);
@@ -244,7 +277,7 @@
     }
     .token-value.active { color: var(--accent2); }
 
-    /* Toggle */
+    /* TOGGLE */
     .toggle { position: relative; width: 46px; height: 26px; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
     .toggle-track {
@@ -281,7 +314,8 @@
       transition: all .2s; display: flex; align-items: center; gap: 6px;
     }
     .filter-tab.active {
-      background: linear-gradient(135deg,rgba(192,132,252,.15),rgba(129,140,248,.15));
+      background: linear-gradient(135deg,
+        rgba(192,132,252,.15), rgba(129,140,248,.15));
       border-color: rgba(192,132,252,.3); color: var(--accent);
     }
     .filter-tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
@@ -323,21 +357,27 @@
     }
     .notif-card.unread {
       border-color: rgba(192,132,252,.15);
-      background: linear-gradient(135deg,rgba(14,14,24,1),rgba(20,20,34,1));
+      background: linear-gradient(135deg,
+        rgba(14,14,24,1), rgba(20,20,34,1));
     }
     .notif-card.unread::before {
-      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      content: ''; position: absolute;
+      left: 0; top: 0; bottom: 0; width: 3px;
       background: linear-gradient(to bottom,var(--accent),var(--accent2));
       border-radius: 3px 0 0 3px;
     }
     .notif-card:hover {
       background: var(--surface); border-color: var(--border2);
-      transform: translateX(4px); box-shadow: 0 4px 20px rgba(0,0,0,.3);
+      transform: translateX(4px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
     }
     .notif-card:active { transform: translateX(2px) scale(.99); }
     .notif-card.dismissed { animation: dismissOut .4s ease forwards; }
     @keyframes dismissOut {
-      to { opacity:0; transform:translateX(100%); max-height:0; margin:0; padding:0; border:none; }
+      to {
+        opacity: 0; transform: translateX(100%);
+        max-height: 0; margin: 0; padding: 0; border: none;
+      }
     }
 
     .notif-icon {
@@ -363,9 +403,10 @@
     }
 
     .notif-body { flex: 1; min-width: 0; }
-    .notif-top  {
+    .notif-top {
       display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 8px; margin-bottom: 4px;
+      justify-content: space-between;
+      gap: 8px; margin-bottom: 4px;
     }
     .notif-sender {
       font-size: 14px; font-weight: 600; letter-spacing: -.2px;
@@ -378,19 +419,35 @@
     .notif-preview {
       font-size: 13px; color: var(--muted); line-height: 1.4;
       overflow: hidden; text-overflow: ellipsis;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
-    .notif-actions { display: none; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .notif-actions {
+      display: none; gap: 6px;
+      margin-top: 10px; flex-wrap: wrap;
+    }
     .notif-card.expanded .notif-actions { display: flex; }
     .notif-act-btn {
       padding: 7px 16px; border-radius: 9px; border: none;
       font-size: 12px; font-weight: 600; font-family: inherit;
       cursor: pointer; transition: all .2s;
     }
-    .notif-act-btn.accept    { background:linear-gradient(135deg,var(--accent4),#2dd4bf); color:#042f2e; }
-    .notif-act-btn.reject    { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
-    .notif-act-btn.open-chat { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:var(--bg); }
-    .notif-act-btn.dismiss   { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
+    .notif-act-btn.accept {
+      background: linear-gradient(135deg,var(--accent4),#2dd4bf);
+      color: #042f2e;
+    }
+    .notif-act-btn.reject {
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .notif-act-btn.open-chat {
+      background: linear-gradient(135deg,var(--accent),var(--accent2));
+      color: var(--bg);
+    }
+    .notif-act-btn.dismiss {
+      background: var(--surface2); color: var(--muted);
+      border: 1px solid var(--border);
+    }
     .notif-act-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
 
     .type-badge {
@@ -426,7 +483,10 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 32px; animation: emptyFloat 3s ease-in-out infinite;
     }
-    @keyframes emptyFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes emptyFloat {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
     .empty-title { font-size: 17px; font-weight: 600; }
     .empty-sub   { font-size: 13px; color: var(--muted); max-width: 240px; line-height: 1.5; }
 
@@ -434,13 +494,19 @@
     .skeleton-card {
       display: flex; align-items: flex-start; gap: 14px;
       padding: 14px 16px; border-radius: 18px;
-      background: var(--card); border: 1px solid var(--border); margin-bottom: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      margin-bottom: 8px;
     }
     .sk {
-      background: linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);
-      background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px;
+      background: linear-gradient(90deg,
+        var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite; border-radius: 8px;
     }
-    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
     .sk-avatar { width:46px; height:46px; border-radius:14px; flex-shrink:0; }
     .sk-body   { flex:1; display:flex; flex-direction:column; gap:8px; }
     .sk-line   { height: 12px; }
@@ -457,9 +523,12 @@
       cursor: pointer; transition: all .2s; display: none;
     }
     .load-more.show { display: block; }
-    .load-more:hover { border-color:var(--accent); color:var(--accent); background:rgba(192,132,252,.05); }
+    .load-more:hover {
+      border-color: var(--accent); color: var(--accent);
+      background: rgba(192,132,252,.05);
+    }
 
-    /* TEST NOTIF BTN */
+    /* TEST BTN */
     .test-btn {
       width: 100%; padding: 12px; margin-bottom: 16px;
       border-radius: 14px; border: 1px solid rgba(192,132,252,.3);
@@ -469,15 +538,16 @@
     }
     .test-btn.show { display: block; }
     .test-btn:hover { background: rgba(192,132,252,.1); }
+    .test-btn:disabled { opacity: .5; cursor: not-allowed; }
 
     @media (max-width: 480px) {
-      .top-nav  { padding: 10px 12px; }
-      .main     { padding: 14px 10px 50px; }
-      .stats-row{ gap: 6px; }
-      .stat-num { font-size: 20px; }
-      .perm-btn { padding: 8px 12px; font-size: 12px; }
-      .nav-right{ gap: 4px; }
-      .nav-btn  { padding: 6px 10px; font-size: 11px; }
+      .top-nav   { padding: 10px 12px; }
+      .main      { padding: 14px 10px 50px; }
+      .stats-row { gap: 6px; }
+      .stat-num  { font-size: 20px; }
+      .perm-btn  { padding: 8px 12px; font-size: 12px; }
+      .nav-right { gap: 4px; }
+      .nav-btn   { padding: 6px 10px; font-size: 11px; }
     }
   </style>
 </head>
@@ -488,7 +558,6 @@
   <div class="bg-blob"></div>
 </div>
 
-<!-- Top Nav -->
 <div class="top-nav">
   <div class="nav-left">
     <button class="back-btn" onclick="window.location.href='chats.html'">←</button>
@@ -502,7 +571,6 @@
 
 <div class="main">
 
-  <!-- Permission Banner -->
   <div class="permission-banner" id="permissionBanner">
     <div class="perm-icon">🔔</div>
     <div class="perm-info">
@@ -512,13 +580,13 @@
     <button class="perm-btn" id="enableNotifBtn">Enable</button>
   </div>
 
-  <!-- FCM Status -->
   <div class="fcm-status" id="fcmStatus"></div>
 
-  <!-- Test Button -->
+  <!-- Debug panel - shows SW path info -->
+  <div class="debug-panel" id="debugPanel"></div>
+
   <button class="test-btn" id="testNotifBtn">🔔 Send Test Notification</button>
 
-  <!-- Stats -->
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-num" id="totalCount">0</div>
@@ -534,7 +602,6 @@
     </div>
   </div>
 
-  <!-- Settings -->
   <div class="settings-card">
     <div class="settings-head">
       Notification Settings
@@ -606,8 +673,6 @@
           <div class="toggle-track"></div>
         </label>
       </div>
-
-      <!-- FCM Token Display -->
       <div class="token-row" id="tokenRow" style="display:none">
         <div class="token-label">FCM Device Token</div>
         <div class="token-value" id="tokenValue">Not registered</div>
@@ -615,7 +680,6 @@
     </div>
   </div>
 
-  <!-- Filter Tabs -->
   <div class="filter-tabs" id="filterTabs">
     <button class="filter-tab active" data-filter="all">
       All <span class="tab-count" id="tabAll">0</span>
@@ -634,7 +698,6 @@
     </button>
   </div>
 
-  <!-- Skeleton -->
   <div id="skeletonList">
     <div class="skeleton-card">
       <div class="sk sk-avatar"></div>
@@ -661,10 +724,8 @@
     </div>
   </div>
 
-  <!-- Notification List -->
   <div class="notif-list" id="notifList" style="display:none;"></div>
 
-  <!-- Empty State -->
   <div class="empty-state" id="emptyState">
     <div class="empty-icon">🔕</div>
     <div class="empty-title">No notifications</div>
@@ -693,12 +754,7 @@ if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 
-/* =====================================================
-   ✅ FIX #1 — VAPID key must be a STRING (quoted)
-   Get this from:
-   Firebase Console → Project Settings →
-   Cloud Messaging → Web Push certificates → Generate key pair
-===================================================== */
+// ✅ VAPID key as a proper string
 const VAPID_KEY = 'BPV2cE31TAcPONIrU0ureplOc-rX3tkv5OxGUBIvxxxnuWL3JpyzaPLUVk6EpDCKv6UjiopP6VI9nKEIExCBLjo';
 
 /* =====================================================
@@ -714,44 +770,115 @@ let messagingInstance = null;
 let fcmToken          = null;
 
 /* =====================================================
-   FCM SETUP
+   DEBUG HELPER
+===================================================== */
+function debugLog(msg, type = 'info') {
+  const panel = document.getElementById('debugPanel');
+  panel.classList.add('show');
+  const line = document.createElement('div');
+  line.className = type; // 'ok', 'err', 'warn'
+  line.textContent = '› ' + msg;
+  panel.appendChild(line);
+  console.log('[Debug]', msg);
+}
+
+/* =====================================================
+   GET SERVICE WORKER PATH
+   Automatically detects the correct path based on
+   where the page is being served from
+===================================================== */
+function getServiceWorkerPath() {
+  const loc      = window.location;
+  const pathname = loc.pathname;
+
+  // Split path and remove the HTML filename
+  const parts    = pathname.split('/').filter(Boolean);
+
+  // If last part has a dot, it's a file — remove it
+  if (parts.length > 0 && parts[parts.length - 1].includes('.')) {
+    parts.pop();
+  }
+
+  // Build base path
+  const basePath = parts.length > 0 ? '/' + parts.join('/') : '';
+  const swPath   = basePath + '/firebase-messaging-sw.js';
+
+  debugLog('Page URL: ' + loc.href);
+  debugLog('Detected SW path: ' + swPath);
+
+  return swPath;
+}
+
+/* =====================================================
+   VERIFY SW FILE EXISTS before registering
+===================================================== */
+async function checkSWExists(swPath) {
+  try {
+    const resp = await fetch(swPath, { method: 'HEAD' });
+    if (resp.ok) {
+      debugLog('SW file found ✅ (HTTP ' + resp.status + ')', 'ok');
+      return true;
+    } else {
+      debugLog('SW file NOT found ❌ (HTTP ' + resp.status + ')', 'err');
+      return false;
+    }
+  } catch (e) {
+    debugLog('SW fetch check failed: ' + e.message, 'err');
+    return false;
+  }
+}
+
+/* =====================================================
+   FCM INIT
 ===================================================== */
 async function initFCM() {
-  /* ✅ FIX #2 — Check support before anything else */
   if (!('serviceWorker' in navigator)) {
     showFCMStatus('error', '⚠️ Service workers not supported in this browser');
     return;
   }
   if (!('PushManager' in window)) {
-    showFCMStatus('error', '⚠️ Push notifications not supported in this browser');
+    showFCMStatus('error', '⚠️ Push notifications not supported');
     return;
   }
-  /* ✅ FIX #3 — Notification API may not exist (e.g. iOS Safari < 16.4) */
   if (!('Notification' in window)) {
     showFCMStatus('error', '⚠️ Notifications API not available');
     return;
   }
 
   try {
-    /* ✅ FIX #4 — Use updateViaCache:'none' so SW always gets latest */
-    const swReg = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js',
-      { updateViaCache: 'none' }
-    );
-    console.log('✅ Service Worker registered:', swReg.scope);
+    const swPath = getServiceWorkerPath();
 
-    /* Wait for SW to be ready before getting token */
+    // ✅ Check if SW file actually exists first
+    const swExists = await checkSWExists(swPath);
+    if (!swExists) {
+      showFCMStatus('error',
+        `⚠️ firebase-messaging-sw.js not found at: ${swPath} — ` +
+        `Make sure the file is in the correct folder in your GitHub repo.`
+      );
+      return;
+    }
+
+    // Register SW
+    const swReg = await navigator.serviceWorker.register(swPath, {
+      updateViaCache: 'none'
+    });
+
+    debugLog('SW registered: ' + swReg.scope, 'ok');
+
+    // Wait for SW to be ready
     await navigator.serviceWorker.ready;
+    debugLog('SW ready ✅', 'ok');
 
+    // Init FCM messaging
     messagingInstance = firebase.messaging();
 
-    /* Foreground messages */
+    // Foreground messages
     messagingInstance.onMessage(payload => {
-      console.log('📨 Foreground message:', payload);
+      debugLog('Foreground message received');
       handleForegroundMessage(payload);
     });
 
-    /* Messages from SW (notification clicks) */
+    // SW click messages
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'NOTIFICATION_CLICK') {
         const data = e.data.data || {};
@@ -765,20 +892,22 @@ async function initFCM() {
       }
     });
 
-    /* Check current permission state */
+    // Check permission state
+    debugLog('Notification permission: ' + Notification.permission);
+
     if (Notification.permission === 'granted') {
       await getAndSaveFCMToken();
     } else if (Notification.permission === 'default') {
       document.getElementById('permissionBanner').classList.add('show');
     } else {
-      /* blocked */
       showFCMStatus('error',
-        '🚫 Notifications blocked. Click the 🔒 icon in your address bar to enable.');
+        '🚫 Notifications blocked. Click the 🔒 icon in your address bar → ' +
+        'Site settings → Notifications → Allow');
     }
 
   } catch (err) {
     console.error('FCM init error:', err);
-    /* ✅ FIX #5 — Don't crash the whole page, just show status */
+    debugLog('FCM init error: ' + err.message, 'err');
     showFCMStatus('error', '⚠️ Push setup failed: ' + err.message);
   }
 }
@@ -790,17 +919,18 @@ async function getAndSaveFCMToken() {
   if (!messagingInstance || !currentUserUID) return;
 
   try {
-    showFCMStatus('info', '⟳ Registering for push notifications...');
+    showFCMStatus('info', '⟳ Getting push token...');
 
-    /* ✅ FIX #6 — Wrap in try/catch separately so we get specific error */
     let token;
     try {
       token = await messagingInstance.getToken({ vapidKey: VAPID_KEY });
     } catch (tokenErr) {
-      console.error('getToken error:', tokenErr);
+      console.error('getToken failed:', tokenErr);
+      debugLog('getToken error: ' + tokenErr.code + ' - ' + tokenErr.message, 'err');
+
       if (tokenErr.code === 'messaging/permission-blocked') {
         showFCMStatus('error',
-          '🚫 Notifications blocked. Enable in browser Settings → Site permissions.');
+          '🚫 Notifications blocked. Enable in browser settings → Site permissions.');
       } else if (tokenErr.code === 'messaging/unsupported-browser') {
         showFCMStatus('error', '⚠️ This browser does not support push notifications.');
       } else {
@@ -810,17 +940,17 @@ async function getAndSaveFCMToken() {
     }
 
     if (!token) {
-      showFCMStatus('error',
-        '⚠️ Empty token received. Check your VAPID key in Firebase Console.');
+      showFCMStatus('error', '⚠️ Empty token. Check your VAPID key in Firebase Console.');
+      debugLog('Token is empty/null', 'err');
       return;
     }
 
     fcmToken = token;
-    console.log('✅ FCM Token obtained');
+    debugLog('FCM token obtained ✅ (' + token.substring(0, 20) + '...)', 'ok');
 
-    /* Save token to Firestore */
     const TS = firebase.firestore.FieldValue.serverTimestamp();
 
+    // Save to user document
     await db.collection('users').doc(currentUserUID).set({
       fcmTokens:        firebase.firestore.FieldValue.arrayUnion(fcmToken),
       notifPermission:  'granted',
@@ -828,7 +958,7 @@ async function getAndSaveFCMToken() {
       lastTokenRefresh: TS
     }, { merge: true });
 
-    /* Dedicated tokens collection for server lookup */
+    // Save to fcmTokens collection
     await db.collection('fcmTokens').doc(currentUserUID).set({
       uid:       currentUserUID,
       token:     fcmToken,
@@ -836,32 +966,32 @@ async function getAndSaveFCMToken() {
       updatedAt: TS
     }, { merge: true });
 
-    /* Show token in UI (truncated) */
-    const tokenRow = document.getElementById('tokenRow');
-    const tokenVal = document.getElementById('tokenValue');
-    tokenRow.style.display = 'block';
-    tokenVal.className     = 'token-value active';
-    tokenVal.textContent   = fcmToken.substring(0, 50) + '...';
-    tokenVal.title         = fcmToken; /* full token on hover */
+    debugLog('Token saved to Firestore ✅', 'ok');
 
-    /* Hide permission banner */
+    // Show token in UI
+    document.getElementById('tokenRow').style.display = 'block';
+    const tokenVal = document.getElementById('tokenValue');
+    tokenVal.className   = 'token-value active';
+    tokenVal.textContent = fcmToken.substring(0, 50) + '...';
+    tokenVal.title       = fcmToken;
+
     document.getElementById('permissionBanner').classList.remove('show');
 
     showFCMStatus('success',
       '✅ Push notifications enabled! You\'ll get alerts even when the app is closed.');
     setTimeout(hideFCMStatus, 5000);
 
-    /* Show test button */
     document.getElementById('testNotifBtn').classList.add('show');
 
   } catch (err) {
     console.error('getAndSaveFCMToken error:', err);
-    showFCMStatus('error', '⚠️ Registration error: ' + err.message);
+    debugLog('Save token error: ' + err.message, 'err');
+    showFCMStatus('error', '⚠️ Registration failed: ' + err.message);
   }
 }
 
 /* =====================================================
-   HANDLE FOREGROUND MESSAGE
+   FOREGROUND MESSAGE
 ===================================================== */
 function handleForegroundMessage(payload) {
   const notification = payload.notification || {};
@@ -869,14 +999,12 @@ function handleForegroundMessage(payload) {
   const title        = notification.title   || 'Secure Messenger';
   const body         = notification.body    || '';
 
-  /* Show native browser notification while app is open */
   if (Notification.permission === 'granted') {
     try {
       const n = new Notification(title, {
         body,
-        icon:  '/icon.png',
-        badge: '/badge.png',
-        tag:   data.tag || ('fg-' + Date.now())
+        icon: '/icon.png',
+        tag:  data.tag || ('fg-' + Date.now())
       });
       n.onclick = () => {
         window.focus();
@@ -890,11 +1018,10 @@ function handleForegroundMessage(payload) {
         n.close();
       };
     } catch (e) {
-      console.warn('Foreground Notification error:', e);
+      console.warn('Notification show error:', e);
     }
   }
 
-  /* Save to Firestore so it appears in the list */
   if (currentUserUID && data.saveToFirestore !== 'false') {
     db.collection('users').doc(currentUserUID)
       .collection('notifications').add({
@@ -905,7 +1032,7 @@ function handleForegroundMessage(payload) {
         fromUid:      data.fromUid      || null,
         read:         false,
         createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(e => console.warn('Save notification error:', e));
+      }).catch(e => console.warn('Save notification:', e));
   }
 }
 
@@ -918,32 +1045,33 @@ async function requestPushPermission() {
   btn.textContent = 'Enabling...';
 
   try {
-    /* ✅ FIX #7 — Some browsers need promise-based, some callback-based */
     let permission;
     try {
       permission = await Notification.requestPermission();
     } catch (_) {
-      /* Fallback for older browsers */
       permission = await new Promise(resolve =>
         Notification.requestPermission(resolve)
       );
     }
 
+    debugLog('Permission result: ' + permission);
+
     if (permission === 'granted') {
       await getAndSaveFCMToken();
     } else if (permission === 'denied') {
       showFCMStatus('error',
-        '🚫 Permission denied. Click the 🔒 icon in your address bar and enable Notifications.');
+        '🚫 Denied. Click the 🔒 icon in your browser address bar → ' +
+        'Site settings → Notifications → Allow');
       document.getElementById('permissionBanner').classList.remove('show');
       btn.disabled    = false;
       btn.textContent = 'Enable';
     } else {
-      /* User dismissed the dialog */
       btn.disabled    = false;
       btn.textContent = 'Enable';
     }
   } catch (e) {
     console.error('requestPushPermission:', e);
+    debugLog('Permission request error: ' + e.message, 'err');
     showFCMStatus('error', '⚠️ Could not request permission: ' + e.message);
     btn.disabled    = false;
     btn.textContent = 'Enable';
@@ -964,7 +1092,6 @@ async function sendTestNotification() {
   btn.disabled    = true;
 
   try {
-    /* Add to Firestore so it shows in the list */
     if (currentUserUID) {
       await db.collection('users').doc(currentUserUID)
         .collection('notifications').add({
@@ -976,22 +1103,17 @@ async function sendTestNotification() {
         });
     }
 
-    /* Show native browser notification via Service Worker */
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification('Secure Messenger', {
-      body:    '🔔 Test notification! Push notifications are working correctly.',
-      icon:    '/icon.png',
-      badge:   '/badge.png',
-      tag:     'test-' + Date.now(),
-      vibrate: [200, 100, 200],
-      requireInteraction: false,
-      actions: [
-        { action: 'open',    title: '💬 Open App' },
-        { action: 'dismiss', title: '✕ Dismiss'  }
-      ]
+      body:               '🔔 Test notification! Push is working correctly.',
+      icon:               '/icon.png',
+      tag:                'test-' + Date.now(),
+      vibrate:            [200, 100, 200],
+      requireInteraction: false
     });
 
     btn.textContent = '✅ Sent!';
+    debugLog('Test notification sent ✅', 'ok');
     setTimeout(() => {
       btn.textContent = '🔔 Send Test Notification';
       btn.disabled    = false;
@@ -999,8 +1121,12 @@ async function sendTestNotification() {
 
   } catch (e) {
     console.error('sendTestNotification:', e);
-    btn.textContent = '❌ Failed';
-    btn.disabled    = false;
+    debugLog('Test notification error: ' + e.message, 'err');
+    btn.textContent = '❌ Failed - ' + e.message;
+    setTimeout(() => {
+      btn.textContent = '🔔 Send Test Notification';
+      btn.disabled    = false;
+    }, 3000);
   }
 }
 
@@ -1012,7 +1138,6 @@ function showFCMStatus(type, msg) {
   el.className = `fcm-status show ${type}`;
   el.textContent = msg;
 }
-
 function hideFCMStatus() {
   document.getElementById('fcmStatus').classList.remove('show');
 }
@@ -1056,7 +1181,6 @@ function bindSettings() {
   });
 }
 
-/* Settings collapse */
 let settingsCollapsed = false;
 document.getElementById('settingsToggleBtn').onclick = () => {
   settingsCollapsed = !settingsCollapsed;
@@ -1167,7 +1291,6 @@ function renderNotifications() {
   empty.classList.remove('show');
   list.innerHTML = '';
 
-  /* Group by date */
   const groups = {};
   const order  = [];
   toShow.forEach(n => {
@@ -1193,19 +1316,15 @@ function renderNotifications() {
   });
 }
 
-/* =====================================================
-   BUILD CARD
-===================================================== */
 function buildCard(notif, animIdx) {
   const cfg      = getNotifConfig(notif.type);
   const isUnread = !notif.read;
 
-  const card     = document.createElement('div');
-  card.className = 'notif-card' + (isUnread ? ' unread' : '');
+  const card      = document.createElement('div');
+  card.className  = 'notif-card' + (isUnread ? ' unread' : '');
   card.dataset.id = notif.id;
   card.style.animationDelay = (animIdx * 0.04) + 's';
 
-  /* ── Icon ── */
   const iconEl      = document.createElement('div');
   iconEl.className  = `notif-icon ${cfg.iconClass}`;
   iconEl.textContent = cfg.icon;
@@ -1215,14 +1334,13 @@ function buildCard(notif, animIdx) {
     iconEl.appendChild(dot);
   }
 
-  /* ── Body ── */
   const bodyEl      = document.createElement('div');
   bodyEl.className  = 'notif-body';
 
   const topEl       = document.createElement('div');
   topEl.className   = 'notif-top';
 
-  const senderEl    = document.createElement('div');
+  const senderEl      = document.createElement('div');
   senderEl.className   = 'notif-sender';
   senderEl.textContent = notif.fromName || notif.title || 'Secure Messenger';
 
@@ -1245,7 +1363,6 @@ function buildCard(notif, animIdx) {
   bodyEl.appendChild(previewEl);
   bodyEl.appendChild(badgeEl);
 
-  /* ── Actions ── */
   const actEl     = document.createElement('div');
   actEl.className = 'notif-actions';
 
@@ -1269,7 +1386,6 @@ function buildCard(notif, animIdx) {
 
   bodyEl.appendChild(actEl);
 
-  /* ── Delete btn ── */
   const delBtn      = document.createElement('button');
   delBtn.className  = 'notif-delete-btn';
   delBtn.title      = 'Delete';
@@ -1283,21 +1399,16 @@ function buildCard(notif, animIdx) {
   card.appendChild(bodyEl);
   card.appendChild(delBtn);
 
-  /* ── Click handler ── */
   card.addEventListener('click', async e => {
     if (e.target.closest('.notif-act-btn') || e.target.closest('.notif-delete-btn')) return;
-
     if (isUnread) {
       await markAsRead(notif.id);
       card.classList.remove('unread');
       card.querySelector('.unread-dot')?.remove();
     }
-
     if (notif.type === 'message' && notif.chatFriendId) {
-      navigateToChat(notif);
-      return;
+      navigateToChat(notif); return;
     }
-
     card.classList.toggle('expanded');
   });
 
@@ -1313,9 +1424,6 @@ function makeBtn(action, label, extraClass) {
   return b;
 }
 
-/* =====================================================
-   NAVIGATION
-===================================================== */
 function navigateToChat(notif) {
   if (!notif.chatFriendId) return;
   localStorage.setItem('selectedFriend', JSON.stringify({
@@ -1328,17 +1436,11 @@ function navigateToChat(notif) {
   window.location.href = 'chat.html';
 }
 
-/* =====================================================
-   SWIPE TO DISMISS
-===================================================== */
 function addSwipeToDismiss(card, notifId) {
   let startX = 0, currentX = 0, dragging = false;
-
   card.addEventListener('touchstart', e => {
-    startX   = e.touches[0].clientX;
-    dragging = true;
+    startX = e.touches[0].clientX; dragging = true;
   }, { passive: true });
-
   card.addEventListener('touchmove', e => {
     if (!dragging) return;
     currentX = e.touches[0].clientX - startX;
@@ -1347,15 +1449,10 @@ function addSwipeToDismiss(card, notifId) {
       card.style.opacity   = String(Math.max(0, 1 + currentX / card.offsetWidth));
     }
   }, { passive: true });
-
   card.addEventListener('touchend', () => {
     dragging = false;
-    if (currentX < -100) {
-      deleteNotification(notifId, card);
-    } else {
-      card.style.transform = '';
-      card.style.opacity   = '';
-    }
+    if (currentX < -100) deleteNotification(notifId, card);
+    else { card.style.transform = ''; card.style.opacity = ''; }
     currentX = 0;
   });
 }
@@ -1368,27 +1465,20 @@ async function markAsRead(notifId) {
   try {
     await db.collection('users').doc(currentUserUID)
       .collection('notifications').doc(notifId)
-      .update({
-        read:   true,
-        readAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      .update({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
   } catch (e) { console.warn('markAsRead:', e.message); }
 }
 
 async function deleteNotification(notifId, card) {
   card.classList.add('dismissed');
-
   setTimeout(() => {
     card.remove();
-    /* Remove empty groups */
     document.querySelectorAll('.notif-group').forEach(g => {
       if (!g.querySelector('.notif-card')) g.remove();
     });
-    /* Show empty state if no cards left */
     if (!document.querySelector('.notif-card'))
       document.getElementById('emptyState').classList.add('show');
   }, 420);
-
   try {
     await db.collection('users').doc(currentUserUID)
       .collection('notifications').doc(notifId).delete();
@@ -1398,14 +1488,10 @@ async function deleteNotification(notifId, card) {
 async function handleAction(notif, action, card) {
   const TS = firebase.firestore.FieldValue.serverTimestamp();
 
-  /* Open chat */
   if (action === 'open') {
-    await markAsRead(notif.id);
-    navigateToChat(notif);
-    return;
+    await markAsRead(notif.id); navigateToChat(notif); return;
   }
 
-  /* Accept friend request */
   if (action === 'accept' && notif.type === 'request') {
     try {
       const snap = await db.collection('friend_requests')
@@ -1416,59 +1502,39 @@ async function handleAction(notif, action, card) {
 
       if (!snap.empty) {
         await snap.docs[0].ref.update({ status: 'accepted', updatedAt: TS });
-
         const batch = db.batch();
         batch.set(
-          db.collection('users').doc(currentUserUID)
-            .collection('friends').doc(notif.fromUid),
-          { friendUid:      notif.fromUid,
-            friendName:     notif.fromName     || '',
-            friendUsername: notif.fromUsername || '',
-            createdAt:      TS },
+          db.collection('users').doc(currentUserUID).collection('friends').doc(notif.fromUid),
+          { friendUid: notif.fromUid, friendName: notif.fromName || '',
+            friendUsername: notif.fromUsername || '', createdAt: TS },
           { merge: true }
         );
         batch.set(
-          db.collection('users').doc(notif.fromUid)
-            .collection('friends').doc(currentUserUID),
-          { friendUid: currentUserUID, createdAt: TS },
-          { merge: true }
+          db.collection('users').doc(notif.fromUid).collection('friends').doc(currentUserUID),
+          { friendUid: currentUserUID, createdAt: TS }, { merge: true }
         );
         await batch.commit();
 
         const chatId = [currentUserUID, notif.fromUid].sort().join('_');
         await db.collection('chats').doc(chatId).set(
-          { participants: [currentUserUID, notif.fromUid], createdAt: TS },
-          { merge: true }
+          { participants: [currentUserUID, notif.fromUid], createdAt: TS }, { merge: true }
         );
-
-        /* Notify the requester */
-        await db.collection('users').doc(notif.fromUid)
-          .collection('notifications').add({
-            type:         'system',
-            fromName:     'Secure Messenger',
-            body:         'Your friend request was accepted! You can now chat securely.',
-            chatFriendId: currentUserUID,
-            read:         false,
-            createdAt:    TS
-          });
+        await db.collection('users').doc(notif.fromUid).collection('notifications').add({
+          type: 'system', fromName: 'Secure Messenger',
+          body: 'Your friend request was accepted!',
+          chatFriendId: currentUserUID, read: false, createdAt: TS
+        });
       }
-
       await markAsRead(notif.id);
       card.remove();
       localStorage.setItem('selectedFriend', JSON.stringify({
-        id:   notif.fromUid,
-        name: notif.fromName || ''
+        id: notif.fromUid, name: notif.fromName || ''
       }));
       window.location.href = 'chat.html';
-
-    } catch (e) {
-      console.error('accept error:', e);
-      alert('Failed to accept request: ' + e.message);
-    }
+    } catch (e) { alert('Failed to accept: ' + e.message); }
     return;
   }
 
-  /* Reject friend request */
   if (action === 'reject' && notif.type === 'request') {
     try {
       const snap = await db.collection('friend_requests')
@@ -1478,64 +1544,43 @@ async function handleAction(notif, action, card) {
         .limit(1).get();
       if (!snap.empty)
         await snap.docs[0].ref.update({ status: 'rejected', updatedAt: TS });
-    } catch (e) { console.warn('reject error:', e); }
+    } catch (e) { console.warn(e); }
     await deleteNotification(notif.id, card);
     return;
   }
 
-  /* Dismiss */
-  if (action === 'dismiss') {
-    await deleteNotification(notif.id, card);
-  }
+  if (action === 'dismiss') await deleteNotification(notif.id, card);
 }
 
-/* =====================================================
-   MARK ALL READ
-===================================================== */
 async function markAllRead() {
   const unread = allNotifications.filter(n => !n.read);
   if (!currentUserUID || !unread.length) return;
-
   const batch = db.batch();
   unread.forEach(n => batch.update(
-    db.collection('users').doc(currentUserUID)
-      .collection('notifications').doc(n.id),
+    db.collection('users').doc(currentUserUID).collection('notifications').doc(n.id),
     { read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() }
   ));
-
   try {
     await batch.commit();
     document.querySelectorAll('.notif-card.unread').forEach(card => {
       card.classList.remove('unread');
       card.querySelector('.unread-dot')?.remove();
     });
-  } catch (e) { console.error('markAllRead:', e); }
+  } catch (e) { console.error(e); }
 }
 
-/* =====================================================
-   CLEAR ALL
-===================================================== */
 async function clearAll() {
   if (!currentUserUID) return;
   const filtered = getFiltered();
   if (!filtered.length) return;
-  if (!confirm(
-    `Delete ${filtered.length} notification${filtered.length !== 1 ? 's' : ''}?`
-  )) return;
-
+  if (!confirm(`Delete ${filtered.length} notification${filtered.length !== 1 ? 's' : ''}?`)) return;
   const batch = db.batch();
   filtered.forEach(n => batch.delete(
-    db.collection('users').doc(currentUserUID)
-      .collection('notifications').doc(n.id)
+    db.collection('users').doc(currentUserUID).collection('notifications').doc(n.id)
   ));
-
-  try { await batch.commit(); }
-  catch (e) { console.error('clearAll:', e); }
+  try { await batch.commit(); } catch (e) { console.error(e); }
 }
 
-/* =====================================================
-   LOAD NOTIFICATIONS
-===================================================== */
 function loadNotifications() {
   if (!currentUserUID) return;
   if (unsubscribeNotifs) unsubscribeNotifs();
@@ -1562,7 +1607,7 @@ function loadNotifications() {
         empty.innerHTML = `
           <div class="empty-icon">🔐</div>
           <div class="empty-title">Permission Denied</div>
-          <div class="empty-sub">Update your Firestore security rules to allow notification access.</div>`;
+          <div class="empty-sub">Update Firestore security rules.</div>`;
       }
     });
 }
@@ -1591,7 +1636,7 @@ document.getElementById('enableNotifBtn').addEventListener('click', requestPushP
 document.getElementById('testNotifBtn').addEventListener('click', sendTestNotification);
 
 /* =====================================================
-   AUTH GATE
+   AUTH
 ===================================================== */
 auth.onAuthStateChanged(async user => {
   if (!user) { window.location.href = 'index.html'; return; }
