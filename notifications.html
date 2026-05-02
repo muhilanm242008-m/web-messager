@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Messenger - Notifications</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #c084fc;
+      --accent2: #818cf8;
+      --accent3: #f472b6;
+      --accent4: #34d399;
+      --bg: #06060c;
+      --card: #0e0e18;
+      --surface: #141422;
+      --surface2: #1a1a2e;
+      --border: #232340;
+      --border2: #2d2d4a;
+      --text: #eeeef4;
+      --muted: #6b6b88;
+      --danger: #f87171;
+      --warning: #fbbf24;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== BACKGROUND ===== */
+    .cyber-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .cyber-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(192,132,252,0.015) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(192,132,252,0.015) 60px);
+    }
+
+    .bg-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.1;
+      animation: blobDrift 20s ease-in-out infinite alternate;
+    }
+
+    .bg-blob:nth-child(1) {
+      width: 500px; height: 500px;
+      background: var(--accent);
+      top: -15%; left: -10%;
+    }
+
+    .bg-blob:nth-child(2) {
+      width: 400px; height: 400px;
+      background: var(--accent2);
+      bottom: -10%; right: -8%;
+      animation-delay: -8s;
+    }
+
+    @keyframes blobDrift {
+      0% { transform: translate(0,0) scale(1); }
+      100% { transform: translate(30px, -30px) scale(1.1); }
+    }
+
+    /* ===== TOP NAV ===== */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(6,6,12,0.8);
+      backdrop-filter: blur(30px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .back-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .back-btn:hover {
+      background: var(--surface2);
+      transform: translateX(-2px);
+    }
+
+    .nav-title {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      padding: 7px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .nav-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .nav-btn.danger:hover {
+      background: rgba(248,113,113,0.1);
+      color: var(--danger);
+      border-color: rgba(248,113,113,0.3);
+    }
+
+    /* ===== MAIN ===== */
+    .main {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 20px 14px 60px;
+    }
+
+    /* ===== PERMISSION BANNER ===== */
+    .permission-banner {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(192,132,252,0.08), rgba(129,140,248,0.08));
+      border: 1px solid rgba(192,132,252,0.2);
+      animation: slideDown 0.5s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    .permission-banner.show { display: flex; }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .perm-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .perm-info {
+      flex: 1;
+    }
+
+    .perm-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .perm-info p {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .perm-btn {
+      padding: 9px 18px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .perm-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(192,132,252,0.3);
+    }
+
+    /* ===== STATS ROW ===== */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      text-align: center;
+      transition: all 0.2s;
+      animation: cardSlideIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes cardSlideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stat-num {
+      font-size: 26px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ===== FILTER TABS ===== */
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .filter-tabs::-webkit-scrollbar { display: none; }
+
+    .filter-tab {
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-tab.active {
+      background: linear-gradient(135deg, rgba(192,132,252,0.15), rgba(129,140,248,0.15));
+      border-color: rgba(192,132,252,0.3);
+      color: var(--accent);
+    }
+
+    .filter-tab:hover:not(.active) {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .tab-count {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 6px;
+      background: rgba(192,132,252,0.15);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ===== NOTIFICATION LIST ===== */
+    .notif-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .notif-group {
+      margin-bottom: 6px;
+    }
+
+    .group-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 8px;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .group-label .line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    /* ===== NOTIFICATION CARD ===== */
+    .notif-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      position: relative;
+      overflow: hidden;
+      animation: notifIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes notifIn {
+      from { opacity: 0; transform: translateX(-15px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .notif-card.unread {
+      border-color: rgba(192,132,252,0.15);
+      background: linear-gradient(135deg, rgba(14,14,24,1), rgba(20,20,34,1));
+    }
+
+    .notif-card.unread::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      border-radius: 3px 0 0 3px;
+    }
+
+    .notif-card:hover {
+      background: var(--surface);
+      border-color: var(--border2);
+      transform: translateX(4px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .notif-card:active {
+      transform: translateX(2px) scale(0.99);
+    }
+
+    /* Swipe to dismiss */
+    .notif-card.swiping {
+      transition: transform 0.1s ease;
+    }
+
+    .notif-card.dismissed {
+      animation: dismissOut 0.4s cubic-bezier(0.4,0,1,1) forwards;
+    }
+
+    @keyframes dismissOut {
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+        max-height: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+    }
+
+    .notif-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .notif-icon.msg {
+      background: linear-gradient(135deg, rgba(192,132,252,0.15), rgba(129,140,248,0.15));
+      border: 1px solid rgba(192,132,252,0.2);
+    }
+
+    .notif-icon.req {
+      background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.15));
+      border: 1px solid rgba(251,191,36,0.2);
+    }
+
+    .notif-icon.call {
+      background: linear-gradient(135deg, rgba(52,211,153,0.15), rgba(16,185,129,0.15));
+      border: 1px solid rgba(52,211,153,0.2);
+    }
+
+    .notif-icon.system {
+      background: linear-gradient(135deg, rgba(129,140,248,0.15), rgba(99,102,241,0.15));
+      border: 1px solid rgba(129,140,248,0.2);
+    }
+
+    .notif-icon.danger {
+      background: linear-gradient(135deg, rgba(248,113,113,0.15), rgba(239,68,68,0.15));
+      border: 1px solid rgba(248,113,113,0.2);
+    }
+
+    .unread-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--card);
+      animation: dotPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes dotPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(192,132,252,0.4); }
+      50% { box-shadow: 0 0 0 5px rgba(192,132,252,0); }
+    }
+
+    .notif-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notif-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .notif-sender {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .notif-time {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+
+    .notif-preview {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .notif-preview strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .notif-actions {
+      display: none;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .notif-card.expanded .notif-actions { display: flex; }
+
+    .notif-act-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .notif-act-btn.accept {
+      background: linear-gradient(135deg, var(--accent4), #2dd4bf);
+      color: #042f2e;
+    }
+
+    .notif-act-btn.reject {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .notif-act-btn.open {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
+    }
+
+    .notif-act-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.1);
+    }
+
+    /* ===== TYPE BADGE ===== */
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 5px;
+    }
+
+    .type-badge.msg { background: rgba(192,132,252,0.1); color: var(--accent); }
+    .type-badge.req { background: rgba(251,191,36,0.1); color: var(--warning); }
+    .type-badge.call { background: rgba(52,211,153,0.1); color: var(--accent4); }
+    .type-badge.system { background: rgba(129,140,248,0.1); color: var(--accent2); }
+    .type-badge.danger { background: rgba(248,113,113,0.1); color: var(--danger); }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .empty-state.show { display: flex; }
+
+    .empty-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      animation: emptyFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes emptyFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .empty-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .empty-sub {
+      font-size: 13px;
+      color: var(--muted);
+      max-width: 240px;
+      line-height: 1.5;
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast-container {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      min-width: 280px;
+      max-width: 360px;
+      pointer-events: all;
+      cursor: pointer;
+      animation: toastIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .toast::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      animation: toastTimer 5s linear forwards;
+    }
+
+    .toast.purple::after { background: var(--accent); }
+    .toast.blue::after { background: var(--accent2); }
+    .toast.green::after { background: var(--accent4); }
+    .toast.red::after { background: var(--danger); }
+
+    @keyframes toastTimer {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(100%) scale(0.9); }
+      to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .toast.toastOut {
+      animation: toastOut 0.3s ease forwards;
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(100%) scale(0.9); max-height: 0; margin: 0; padding: 0; }
+    }
+
+    .toast-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .toast-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .toast-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast-msg {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      background: var(--surface);
+      border: none;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      pointer-events: all;
+    }
+
+    /* ===== NOTIFICATION SETTINGS ===== */
+    .settings-card {
+      margin-bottom: 20px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      animation: cardSlideIn 0.5s ease both;
+    }
+
+    .settings-head {
+      padding: 14px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: 'JetBrains Mono', monospace;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(35,35,64,0.5);
+      transition: background 0.2s;
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row:hover { background: rgba(192,132,252,0.03); }
+
+    .setting-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .setting-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .setting-text .label {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .setting-text .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Toggle Switch */
+    .toggle {
+      position: relative;
+      width: 46px;
+      height: 26px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .toggle input:checked + .toggle-track {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-color: transparent;
+    }
+
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(20px);
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* ===== PAGINATION / LOAD MORE ===== */
+    .load-more {
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px dashed var(--border2);
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: none;
+    }
+
+    .load-more.show { display: block; }
+    .load-more:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(192,132,252,0.05);
+    }
+
+    /* ===== SKELETON LOADER ===== */
+    .skeleton-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .sk {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .sk-avatar { width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0; }
+    .sk-body { flex: 1; }
+    .sk-line { height: 12px; margin-bottom: 8px; }
+    .sk-line.short { width: 60%; }
+    .sk-line.long { width: 90%; }
+    .sk-line.mid { width: 75%; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .top-nav { padding: 10px 12px; }
+      .main { padding: 14px 10px 50px; }
+      .stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .stat-num { font-size: 20px; }
+      .toast { min-width: 240px; }
+      .perm-btn { padding: 8px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="cyber-bg">
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Top Nav -->
+  <div class="top-nav">
+    <div class="nav-left">
+      <a href="chats.html" class="back-btn">←</a>
+      <div class="nav-title">Notifications</div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-btn" id="markAllReadBtn">Mark all read</button>
+      <button class="nav-btn danger" id="clearAllBtn">Clear all</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Permission Banner -->
+    <div class="permission-banner" id="permissionBanner">
+      <div class="perm-icon">🔔</div>
+      <div class="perm-info">
+        <h3>Enable Push Notifications</h3>
+        <p>Get notified about new messages, calls, and friend requests even when the app is closed.</p>
+      </div>
+      <button class="perm-btn" id="enableNotifBtn">Enable</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="totalCount">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="unreadCount">0</div>
+        <div class="stat-label">Unread</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="todayCount">0</div>
+        <div class="stat-label">Today</div>
+      </div>
+    </div>
+
+    <!-- Settings Card -->
+    <div class="settings-card" id="settingsCard">
+      <div class="settings-head">Notification Settings</div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-icon" style="background: rgba(192,132,252,0.1);">💬</div>
+          <div class="setting-text">
+            <div class="label">Messages</div>
+            <div class="sub">New message alerts</div>
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togMsg" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-icon" style="background: rgba(251,191,36,0.1);">👋</div>
+          <div class="setting-text">
+            <div class="label">Friend Requests</div>
+            <div class="sub">New connection requests</div>
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togReq" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-icon" style="background: rgba(52,211,153,0.1);">📞</div>
+          <div class="setting-text">
+            <div class="label">Calls</div>
+            <div class="sub">Incoming call alerts</div>
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togCall" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-icon" style="background: rgba(129,140,248,0.1);">🔔</div>
+          <div class="setting-text">
+            <div class="label">Sound</div>
+            <div class="sub">Play notification sound</div>
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togSound" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-icon" style="background: rgba(244,114,182,0.1);">📳</div>
+          <div class="setting-text">
+            <div class="label">Vibration</div>
+            <div class="sub">Vibrate on notification</div>
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togVibrate" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs" id="filterTabs">
+      <button class="filter-tab active" data-filter="all">
+        All <span class="tab-count" id="tabAll">0</span>
+      </button>
+      <button class="filter-tab" data-filter="message">
+        💬 Messages <span class="tab-count" id="tabMsg">0</span>
+      </button>
+      <button class="filter-tab" data-filter="request">
+        👋 Requests <span class="tab-count" id="tabReq">0</span>
+      </button>
+      <button class="filter-tab" data-filter="call">
+        📞 Calls <span class="tab-count" id="tabCall">0</span>
+      </button>
+      <button class="filter-tab" data-filter="system">
+        🔔 System <span class="tab-count" id="tabSys">0</span>
+      </button>
+    </div>
+
+    <!-- Skeleton loaders -->
+    <div id="skeletonList">
+      <div class="skeleton-card">
+        <div class="sk sk-avatar"></div>
+        <div class="sk-body">
+          <div class="sk sk-line short"></div>
+          <div class="sk sk-line long"></div>
+          <div class="sk sk-line mid"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="sk sk-avatar"></div>
+        <div class="sk-body">
+          <div class="sk sk-line short"></div>
+          <div class="sk sk-line long"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="sk sk-avatar"></div>
+        <div class="sk-body">
+          <div class="sk sk-line short"></div>
+          <div class="sk sk-line long"></div>
+          <div class="sk sk-line mid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification List -->
+    <div class="notif-list" id="notifList" style="display:none;"></div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🔕</div>
+      <div class="empty-title">No notifications</div>
+      <div class="empty-sub">You're all caught up! New notifications will appear here.</div>
+    </div>
+
+    <!-- Load More -->
+    <button class="load-more" id="loadMoreBtn">Load more notifications</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFKOgNZgaIZ9q09VvmKJrnEWys7ancSEE",
+      authDomain: "web-messager-533ae.firebaseapp.com",
+      projectId: "web-messager-533ae",
+      storageBucket: "web-messager-533ae.firebasestorage.app",
+      messagingSenderId: "466370688536",
+      appId: "1:466370688536:web:90e63387db2e4b697ff56d",
+      measurementId: "G-Q3136YFH7C"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUserUID = null;
+    let allNotifications = [];
+    let currentFilter = 'all';
+    let displayedCount = 0;
+    const PAGE_SIZE = 20;
+    let notifSettings = {
+      messages: true, requests: true, calls: true, sound: true, vibrate: true
+    };
+    let unsubscribeNotifs = null;
+
+    // ===== NOTIFICATION SOUND =====
+    function playNotifSound() {
+      if (!notifSettings.sound) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+      } catch(e) {}
+    }
+
+    function vibrateNotif() {
+      if (!notifSettings.vibrate) return;
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    }
+
+    // ===== TOAST NOTIFICATIONS =====
+    const toastContainer = document.getElementById('toastContainer');
+
+    function showToast(title, msg, type = 'purple', iconEmoji = '🔔', onClick = null) {
+      const iconBgs = {
+        purple: 'rgba(192,132,252,0.15)',
+        blue: 'rgba(129,140,248,0.15)',
+        green: 'rgba(52,211,153,0.15)',
+        red: 'rgba(248,113,113,0.15)'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <div class="toast-icon" style="background: ${iconBgs[type] || iconBgs.purple};">${iconEmoji}</div>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-msg">${msg}</div>
+        </div>
+        <button class="toast-close">✕</button>
+      `;
+
+      toast.querySelector('.toast-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissToast(toast);
+      });
+
+      if (onClick) {
+        toast.addEventListener('click', () => {
+          dismissToast(toast);
+          onClick();
+        });
+      }
+
+      toastContainer.appendChild(toast);
+      playNotifSound();
+      vibrateNotif();
+
+      setTimeout(() => dismissToast(toast), 5000);
+    }
+
+    function dismissToast(toast) {
+      toast.classList.add('toastOut');
+      setTimeout(() => toast.remove(), 300);
+    }
+
+    // ===== PUSH NOTIFICATIONS =====
+    async function requestPushPermission() {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          document.getElementById('permissionBanner').classList.remove('show');
+          showToast('Notifications Enabled', 'You will now receive push notifications', 'green', '✅');
+          savePushToken();
+        } else {
+          showToast('Permission Denied', 'Enable notifications in browser settings', 'red', '🔕');
+        }
+      } catch(e) {
+        console.error('Push permission error:', e);
+      }
+    }
+
+    async function savePushToken() {
+      // In production, use Firebase Messaging to get FCM token
+      // and save it to Firestore for server-side push notifications
+      try {
+        if ('serviceWorker' in navigator) {
+          // Save to user doc in Firestore
+          await db.collection('users').doc(currentUserUID).set({
+            notifPermission: 'granted',
+            notifUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      } catch(e) {
+        console.error('Save push token error:', e);
+      }
+    }
+
+    function checkNotificationPermission() {
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'default') {
+        document.getElementById('permissionBanner').classList.add('show');
+      }
+    }
+
+    // ===== BROWSER PUSH =====
+    function sendBrowserNotification(title, body, icon = '🔒') {
+      if (Notification.permission !== 'granted') return;
+      if (document.visibilityState === 'visible') return; // don't show if app is open
+      try {
+        const notif = new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'secure-messenger-' + Date.now(),
+          renotify: true,
+          vibrate: [200, 100, 200]
+        });
+        notif.onclick = () => {
+          window.focus();
+          window.location.href = 'chats.html';
+          notif.close();
+        };
+        setTimeout(() => notif.close(), 6000);
+      } catch(e) {}
+    }
+
+    // ===== TIME FORMAT =====
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const diffMs = Date.now() - d.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMin < 1) return 'just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays === 1) return 'yesterday';
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function isToday(ts) {
+      if (!ts) return false;
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }
+
+    function getGroupLabel(ts) {
+      if (!ts) return 'Earlier';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (d.toDateString() === today.toDateString()) return 'Today';
+      if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+
+    // ===== NOTIFICATION CONFIG =====
+    function getNotifConfig(type) {
+      const configs = {
+        message: {
+          icon: '💬',
+          iconClass: 'msg',
+          badgeClass: 'msg',
+          badgeText: 'MESSAGE',
+          color: 'purple'
+        },
+        request: {
+          icon: '👋',
+          iconClass: 'req',
+          badgeClass: 'req',
+          badgeText: 'FRIEND REQUEST',
+          color: 'blue'
+        },
+        call: {
+          icon: '📞',
+          iconClass: 'call',
+          badgeClass: 'call',
+          badgeText: 'CALL',
+          color: 'green'
+        },
+        system: {
+          icon: '🔔',
+          iconClass: 'system',
+          badgeClass: 'system',
+          badgeText: 'SYSTEM',
+          color: 'blue'
+        },
+        security: {
+          icon: '🔐',
+          iconClass: 'danger',
+          badgeClass: 'danger',
+          badgeText: 'SECURITY',
+          color: 'red'
+        }
+      };
+      return configs[type] || configs.system;
+    }
+
+    // ===== RENDER NOTIFICATIONS =====
+    function renderNotifications(notifs) {
+      const list = document.getElementById('notifList');
+      const empty = document.getElementById('emptyState');
+      const skeleton = document.getElementById('skeletonList');
+
+      skeleton.style.display = 'none';
+      list.style.display = 'flex';
+
+      const filtered = currentFilter === 'all'
+        ? notifs
+        : notifs.filter(n => n.type === currentFilter);
+
+      displayedCount = Math.min(filtered.length, PAGE_SIZE);
+      const toShow = filtered.slice(0, displayedCount);
+
+      const loadMore = document.getElementById('loadMoreBtn');
+      loadMore.classList.toggle('show', filtered.length > displayedCount);
+
+      if (filtered.length === 0) {
+        list.innerHTML = '';
+        empty.classList.add('show');
+        return;
+      }
+
+      empty.classList.remove('show');
+      list.innerHTML = '';
+
+      // Group by date
+      const groups = {};
+      toShow.forEach(n => {
+        const label = getGroupLabel(n.createdAt);
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(n);
+      });
+
+      Object.entries(groups).forEach(([label, items], gi) => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'notif-group';
+        groupEl.innerHTML = `
+          <div class="group-label">
+            <span>${label}</span>
+            <div class="line"></div>
+          </div>`;
+
+        items.forEach((notif, i) => {
+          const cfg = getNotifConfig(notif.type);
+          const isUnread = !notif.read;
+
+          const card = document.createElement('div');
+          card.className = 'notif-card' + (isUnread ? ' unread' : '');
+          card.dataset.id = notif.id;
+          card.style.animationDelay = ((gi * 3 + i) * 0.05) + 's';
+
+          let actionsHtml = '';
+          if (notif.type === 'request' && notif.status === 'pending') {
+            actionsHtml = `
+              <div class="notif-actions">
+                <button class="notif-act-btn accept" data-action="accept" data-id="${notif.id}">✓ Accept</button>
+                <button class="notif-act-btn reject" data-action="reject" data-id="${notif.id}">✕ Reject</button>
+              </div>`;
+          } else if (notif.type === 'message') {
+            actionsHtml = `
+              <div class="notif-actions">
+                <button class="notif-act-btn open" data-action="open" data-id="${notif.id}">Open Chat →</button>
+              </div>`;
+          } else if (notif.type === 'call') {
+            actionsHtml = `
+              <div class="notif-actions">
+                <button class="notif-act-btn accept" data-action="callback" data-id="${notif.id}">📞 Call back</button>
+              </div>`;
+          }
+
+          card.innerHTML = `
+            <div class="notif-icon ${cfg.iconClass}">
+              ${cfg.icon}
+              ${isUnread ? '<div class="unread-dot"></div>' : ''}
+            </div>
+            <div class="notif-body">
+              <div class="notif-top">
+                <div class="notif-sender">${notif.fromName || notif.title || 'System'}</div>
+                <div class="notif-time">${formatTime(notif.createdAt)}</div>
+              </div>
+              <div class="notif-preview">${notif.body || notif.message || ''}</div>
+              <div class="type-badge ${cfg.badgeClass}">${cfg.badgeText}</div>
+              ${actionsHtml}
+            </div>
+          `;
+
+          // Click to expand/open
+          card.addEventListener('click', async (e) => {
+            if (e.target.closest('.notif-act-btn')) return;
+            card.classList.toggle('expanded');
+            if (isUnread) {
+              markAsRead(notif.id);
+            }
+          });
+
+          // Action buttons
+          card.querySelectorAll('.notif-act-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              const action = btn.dataset.action;
+              await handleNotifAction(notif, action, card);
+            });
+          });
+
+          // Swipe to dismiss
+          addSwipeToDismiss(card, notif.id);
+
+          groupEl.appendChild(card);
+        });
+
+        list.appendChild(groupEl);
+      });
+    }
+
+    // ===== SWIPE TO DISMISS =====
+    function addSwipeToDismiss(card, notifId) {
+      let startX = 0, currentX = 0, isDragging = false;
+
+      card.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+        card.classList.add('swiping');
+      }, { passive: true });
+
+      card.addEventListener('touchmove', e => {
+        if (!isDragging) return;
+        currentX = e.touches[0].clientX - startX;
+        if (currentX > 0) return;
+        card.style.transform = `translateX(${currentX}px)`;
+        card.style.opacity = 1 + (currentX / card.offsetWidth);
+      }, { passive: true });
+
+      card.addEventListener('touchend', () => {
+        isDragging = false;
+        card.classList.remove('swiping');
+        if (currentX < -100) {
+          dismissNotification(notifId, card);
+        } else {
+          card.style.transform = '';
+          card.style.opacity = '';
+        }
+        currentX = 0;
+      });
+    }
+
+    // ===== ACTIONS =====
+    async function markAsRead(notifId) {
+      if (!currentUserUID) return;
+      try {
+        await db.collection('users').doc(currentUserUID)
+          .collection('notifications').doc(notifId)
+          .update({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
+      } catch(e) { console.error('Mark read error:', e); }
+    }
+
+    async function markAllRead() {
+      if (!currentUserUID || allNotifications.length === 0) return;
+      const batch = db.batch();
+      allNotifications
+        .filter(n => !n.read)
+        .forEach(n => {
+          const ref = db.collection('users').doc(currentUserUID)
+            .collection('notifications').doc(n.id);
+          batch.update(ref, { read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
+        });
+      try {
+        await batch.commit();
+        showToast('All read', 'Marked all notifications as read', 'green', '✅');
+      } catch(e) { console.error('Mark all read error:', e); }
+    }
+
+    async function clearAll() {
+      if (!currentUserUID || allNotifications.length === 0) return;
+      if (!confirm('Delete all notifications? This cannot be undone.')) return;
+      const batch = db.batch();
+      allNotifications.forEach(n => {
+        const ref = db.collection('users').doc(currentUserUID)
+          .collection('notifications').doc(n.id);
+        batch.delete(ref);
+      });
+      try {
+        await batch.commit();
+        showToast('Cleared', 'All notifications deleted', 'blue', '🗑️');
+      } catch(e) { console.error('Clear all error:', e); }
+    }
+
+    async function dismissNotification(notifId, card) {
+      card.classList.add('dismissed');
+      card.style.transform = '';
+      card.style.opacity = '';
+      setTimeout(() => card.remove(), 400);
+      try {
+        await db.collection('users').doc(currentUserUID)
+          .collection('notifications').doc(notifId)
+          .delete();
+      } catch(e) { console.error('Dismiss error:', e); }
+    }
+
+    async function handleNotifAction(notif, action, card) {
+      if (action === 'accept' && notif.type === 'request') {
+        try {
+          await db.collection('friend_requests')
+            .where('toUid', '==', currentUserUID)
+            .where('fromUid', '==', notif.fromUid)
+            .where('status', '==', 'pending')
+            .limit(1).get()
+            .then(async snap => {
+              if (!snap.empty) {
+                await snap.docs[0].ref.update({ status: 'accepted' });
+              }
+            });
+          await markAsRead(notif.id);
+          card.remove();
+          showToast('Request Accepted', `You\'re now connected with ${notif.fromName}`, 'green', '✅');
+        } catch(e) { console.error('Accept error:', e); }
+      }
+
+      if (action === 'reject') {
+        await dismissNotification(notif.id, card);
+        showToast('Request Rejected', 'Friend request declined', 'blue', '✕');
+      }
+
+      if (action === 'open' && notif.chatFriendId) {
+        await markAsRead(notif.id);
+        localStorage.setItem('selectedFriend', JSON.stringify({
+          id: notif.chatFriendId,
+          name: notif.fromName || '',
+          username: notif.fromUsername || '',
+          phone: notif.fromPhone || ''
+        }));
+        window.location.href = 'chat.html';
+      }
+
+      if (action === 'callback') {
+        window.location.href = 'chats.html';
+      }
+    }
+
+    // ===== STATS UPDATE =====
+    function updateStats(notifs) {
+      const total = notifs.length;
+      const unread = notifs.filter(n => !n.read).length;
+      const today = notifs.filter(n => isToday(n.createdAt)).length;
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('unreadCount').textContent = unread;
+      document.getElementById('todayCount').textContent = today;
+
+      // Tab counts
+      document.getElementById('tabAll').textContent = total;
+      document.getElementById('tabMsg').textContent = notifs.filter(n => n.type === 'message').length;
+      document.getElementById('tabReq').textContent = notifs.filter(n => n.type === 'request').length;
+      document.getElementById('tabCall').textContent = notifs.filter(n => n.type === 'call').length;
+      document.getElementById('tabSys').textContent = notifs.filter(n => n.type === 'system' || n.type === 'security').length;
+    }
+
+    // ===== LOAD NOTIFICATIONS =====
+    function loadNotifications() {
+      if (!currentUserUID) return;
+      if (unsubscribeNotifs) unsubscribeNotifs();
+
+      unsubscribeNotifs = db.collection('users').doc(currentUserUID)
+        .collection('notifications')
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .onSnapshot(async snapshot => {
+          const prev = allNotifications.map(n => n.id);
+          allNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          // Detect new arrivals
+          const newNotifs = allNotifications.filter(n => !prev.includes(n.id) && !n.read);
+          newNotifs.forEach(n => {
+            const cfg = getNotifConfig(n.type);
+            const shouldShow = (
+              (n.type === 'message' && notifSettings.messages) ||
+              (n.type === 'request' && notifSettings.requests) ||
+              (n.type === 'call' && notifSettings.calls) ||
+              (n.type === 'system' || n.type === 'security')
+            );
+            if (shouldShow) {
+              showToast(
+                n.fromName || n.title || 'Notification',
+                n.body || n.message || '',
+                cfg.color, cfg.icon
+              );
+              sendBrowserNotification(
+                n.fromName || n.title || 'Secure Messenger',
+                n.body || n.message || ''
+              );
+            }
+          });
+
+          updateStats(allNotifications);
+          renderNotifications(allNotifications);
+        }, err => {
+          console.error('Notifications error:', err);
+          document.getElementById('skeletonList').style.display = 'none';
+          document.getElementById('notifList').style.display = 'flex';
+          document.getElementById('emptyState').classList.add('show');
+        });
+    }
+
+    // ===== REAL-TIME LISTENERS FROM CHATS =====
+    function listenForChatMessages() {
+      if (!currentUserUID) return;
+      db.collection('chats')
+        .where('participants', 'array-contains', currentUserUID)
+        .onSnapshot(async chatSnap => {
+          chatSnap.docChanges().forEach(async change => {
+            if (change.type !== 'modified') return;
+            const chat = change.doc.data();
+            if (chat.lastSenderId === currentUserUID) return;
+
+            const lastSeen = chat.lastSeen && chat.lastSeen[currentUserUID]
+              ? chat.lastSeen[currentUserUID].toDate()
+              : new Date(0);
+
+            const lastMsgTime = chat.lastMessageAt ? chat.lastMessageAt.toDate() : null;
+            if (!lastMsgTime || lastMsgTime <= lastSeen) return;
+            if (!notifSettings.messages) return;
+
+            const otherId = chat.participants.find(p => p !== currentUserUID);
+            if (!otherId) return;
+
+            const userDoc = await db.collection('users').doc(otherId).get();
+            const senderName = userDoc.exists
+              ? (userDoc.data().name || userDoc.data().username || 'Someone')
+              : 'Someone';
+
+            const msgText = chat.lastMessageText || 'New message';
+
+            // Create notification in Firestore
+            await db.collection('users').doc(currentUserUID)
+              .collection('notifications').add({
+                type: 'message',
+                fromUid: otherId,
+                fromName: senderName,
+                fromUsername: userDoc.exists ? (userDoc.data().username || '') : '',
+                chatFriendId: otherId,
+                body: msgText,
+                read: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+          });
+        });
+    }
+
+    function listenForFriendRequests() {
+      if (!currentUserUID) return;
+      db.collection('friend_requests')
+        .where('toUid', '==', currentUserUID)
+        .where('status', '==', 'pending')
+        .onSnapshot(snap => {
+          snap.docChanges().forEach(async change => {
+            if (change.type !== 'added') return;
+            if (!notifSettings.requests) return;
+
+            const req = change.doc.data();
+
+            // Check if notification already exists
+            const existing = await db.collection('users').doc(currentUserUID)
+              .collection('notifications')
+              .where('type', '==', 'request')
+              .where('fromUid', '==', req.fromUid)
+              .where('read', '==', false)
+              .limit(1).get();
+
+            if (!existing.empty) return;
+
+            await db.collection('users').doc(currentUserUID)
+              .collection('notifications').add({
+                type: 'request',
+                fromUid: req.fromUid,
+                fromName: req.fromName || req.fromUsername || 'Someone',
+                fromUsername: req.fromUsername || '',
+                fromPhone: req.fromPhone || '',
+                status: 'pending',
+                body: `${req.fromName || 'Someone'} wants to start a secure conversation with you.`,
+                read: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+          });
+        });
+    }
+
+    // ===== SETTINGS PERSISTENCE =====
+    function loadSettings() {
+      const saved = localStorage.getItem('notifSettings');
+      if (saved) {
+        notifSettings = { ...notifSettings, ...JSON.parse(saved) };
+        document.getElementById('togMsg').checked = notifSettings.messages;
+        document.getElementById('togReq').checked = notifSettings.requests;
+        document.getElementById('togCall').checked = notifSettings.calls;
+        document.getElementById('togSound').checked = notifSettings.sound;
+        document.getElementById('togVibrate').checked = notifSettings.vibrate;
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem('notifSettings', JSON.stringify(notifSettings));
+    }
+
+    function bindSettings() {
+      document.getElementById('togMsg').addEventListener('change', e => {
+        notifSettings.messages = e.target.checked;
+        saveSettings();
+        showToast('Setting saved', `Message notifications ${e.target.checked ? 'enabled' : 'disabled'}`, e.target.checked ? 'green' : 'blue', e.target.checked ? '🔔' : '🔕');
+      });
+      document.getElementById('togReq').addEventListener('change', e => {
+        notifSettings.requests = e.target.checked;
+        saveSettings();
+      });
+      document.getElementById('togCall').addEventListener('change', e => {
+        notifSettings.calls = e.target.checked;
+        saveSettings();
+      });
+      document.getElementById('togSound').addEventListener('change', e => {
+        notifSettings.sound = e.target.checked;
+        saveSettings();
+        if (e.target.checked) playNotifSound();
+      });
+      document.getElementById('togVibrate').addEventListener('change', e => {
+        notifSettings.vibrate = e.target.checked;
+        saveSettings();
+        if (e.target.checked) vibrateNotif();
+      });
+    }
+
+    // ===== FILTER TABS =====
+    document.getElementById('filterTabs').addEventListener('click', e => {
+      const tab = e.target.closest('.filter-tab');
+      if (!tab) return;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentFilter = tab.dataset.filter;
+      renderNotifications(allNotifications);
+    });
+
+    // ===== NAV ACTIONS =====
+    document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+    document.getElementById('enableNotifBtn').addEventListener('click', requestPushPermission);
+
+    // Load more
+    document.getElementById('loadMoreBtn').addEventListener('click', () => {
+      displayedCount = Math.min(displayedCount + PAGE_SIZE, allNotifications.length);
+      renderNotifications(allNotifications);
+    });
+
+    // ===== DEMO NOTIFICATIONS (for testing) =====
+    async function seedDemoNotifications(uid) {
+      const exists = await db.collection('users').doc(uid)
+        .collection('notifications').limit(1).get();
+      if (!exists.empty) return;
+
+      const now = firebase.firestore.Timestamp.now();
+      const hour = 3600 * 1000;
+
+      const demos = [
+        {
+          type: 'message',
+          fromUid: 'demo1',
+          fromName: 'Priya Sharma',
+          chatFriendId: 'demo1',
+          body: 'Hey! Are you free this weekend? 😊',
+          read: false,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 5 * 60 * 1000))
+        },
+        {
+          type: 'request',
+          fromUid: 'demo2',
+          fromName: 'Arjun Patel',
+          fromUsername: 'arjun_p',
+          fromPhone: '9876543210',
+          status: 'pending',
+          body: 'Arjun Patel wants to start a secure conversation with you.',
+          read: false,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 30 * 60 * 1000))
+        },
+        {
+          type: 'call',
+          fromUid: 'demo3',
+          fromName: 'Rohan Kumar',
+          body: 'Rohan Kumar called you — Missed voice call',
+          read: false,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 2 * hour))
+        },
+        {
+          type: 'message',
+          fromUid: 'demo4',
+          fromName: 'Sneha Reddy',
+          chatFriendId: 'demo4',
+          body: '🔒 [Encrypted message]',
+          read: true,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 5 * hour))
+        },
+        {
+          type: 'system',
+          fromName: 'Secure Messenger',
+          title: 'Security Alert',
+          body: 'New login detected from Chrome on Windows. If this was you, no action needed.',
+          read: false,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 24 * hour))
+        },
+        {
+          type: 'request',
+          fromUid: 'demo5',
+          fromName: 'Kavya Nair',
+          fromUsername: 'kavya_n',
+          status: 'pending',
+          body: 'Kavya Nair wants to start a secure conversation with you.',
+          read: true,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 2 * 24 * hour))
+        },
+        {
+          type: 'security',
+          fromName: 'Security Team',
+          title: 'Two-factor recommended',
+          body: 'Enhance your account security by enabling two-factor authentication.',
+          read: true,
+          createdAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() - 3 * 24 * hour))
+        }
+      ];
+
+      const batch = db.batch();
+      demos.forEach(d => {
+        const ref = db.collection('users').doc(uid)
+          .collection('notifications').doc();
+        batch.set(ref, d);
+      });
+      await batch.commit();
+    }
+
+    // ===== AUTH =====
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      currentUserUID = user.uid;
+
+      loadSettings();
+      bindSettings();
+      checkNotificationPermission();
+
+      await seedDemoNotifications(currentUserUID);
+      loadNotifications();
+      listenForChatMessages();
+      listenForFriendRequests();
+    });
+  </script>
+</body>
+</html>
