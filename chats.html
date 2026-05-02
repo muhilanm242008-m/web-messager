@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Secure Messenger - chats</title>
+  <title>Secure Messenger - Chats</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -11,550 +11,1293 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: radial-gradient(circle at top, #202c33 0, #0b141a 45%, #020c12 100%);
-      color: #e9edef;
-      min-height: 100vh;
+
+    :root {
+      --accent: #c084fc;
+      --accent2: #818cf8;
+      --accent3: #f472b6;
+      --accent4: #34d399;
+      --bg: #06060c;
+      --card: #0e0e18;
+      --surface: #141422;
+      --surface2: #1a1a2e;
+      --border: #232340;
+      --border2: #2d2d4a;
+      --text: #eeeef4;
+      --muted: #6b6b88;
+      --danger: #f87171;
+      --warning: #fbbf24;
     }
+
+    body {
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== BACKGROUND ===== */
+    .cyber-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .cyber-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 59px, rgba(192,132,252,0.02) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(192,132,252,0.02) 60px);
+    }
+
+    .bg-glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      animation: glowDrift 25s ease-in-out infinite alternate;
+    }
+
+    .bg-glow:nth-child(1) {
+      width: 500px; height: 500px;
+      background: var(--accent);
+      top: -15%; left: -10%;
+    }
+
+    .bg-glow:nth-child(2) {
+      width: 400px; height: 400px;
+      background: var(--accent2);
+      bottom: -10%; right: -8%;
+      animation-delay: -8s;
+    }
+
+    .bg-glow:nth-child(3) {
+      width: 300px; height: 300px;
+      background: var(--accent3);
+      top: 40%; left: 50%;
+      animation-delay: -15s;
+    }
+
+    @keyframes glowDrift {
+      0% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -40px) scale(1.1); }
+      66% { transform: translate(-20px, 30px) scale(0.95); }
+      100% { transform: translate(15px, -20px) scale(1.05); }
+    }
+
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.04;
+      animation: scanDown 10s linear infinite;
+    }
+
+    @keyframes scanDown {
+      0% { top: -1px; }
+      100% { top: 100%; }
+    }
+
+    /* ===== NOISE TEXTURE ===== */
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.03;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 128px;
+    }
+
+    /* ===== TOP NAV ===== */
     .top-nav {
       position: sticky;
       top: 0;
-      z-index: 10;
-      padding: 12px 16px;
+      z-index: 50;
+      padding: 14px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      background: rgba(15, 23, 30, 0.72);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      backdrop-filter: blur(30px) saturate(1.5);
+      -webkit-backdrop-filter: blur(30px) saturate(1.5);
+      background: rgba(6, 6, 12, 0.75);
+      border-bottom: 1px solid var(--border);
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
+
     .brand-logo {
-      width: 30px;
-      height: 30px;
-      border-radius: 10px;
-      background: conic-gradient(from 210deg, #00a884, #00d4aa, #007765, #00a884);
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      font-weight: 700;
-      color: #0b141a;
+      position: relative;
+      overflow: hidden;
     }
+
+    .brand-logo::before {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      background: var(--bg);
+      border-radius: 10px;
+    }
+
+    .brand-logo span {
+      position: relative;
+      z-index: 1;
+      font-size: 16px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
     .brand-title {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
-    .brand-title span:first-child {
+
+    .brand-title .name {
       font-size: 16px;
       font-weight: 600;
+      letter-spacing: -0.3px;
     }
-    .brand-title span:last-child {
+
+    .brand-title .sub {
       font-size: 11px;
-      color: #8696a0;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
     }
 
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .icon-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
+
+    .nav-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: #e9edef;
+      color: var(--muted);
       font-size: 16px;
-      backdrop-filter: blur(16px);
-      transition: background 0.15s, transform 0.15s;
-    }
-    .icon-btn:hover {
-      background: rgba(255,255,255,0.12);
-      transform: translateY(-1px);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
     }
 
+    .nav-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+      border-color: var(--border2);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .nav-btn:active {
+      transform: translateY(0) scale(0.95);
+    }
+
+    .req-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f87171, #ef4444);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+      animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes badgePop {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+
+    /* ===== MAIN CONTENT ===== */
     .main {
-      max-width: 960px;
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
       margin: 0 auto;
-      padding: 12px 12px 24px;
-    }
-    @media (min-width: 768px) {
-      .main { padding: 16px 20px 32px; }
+      padding: 16px 14px 40px;
     }
 
-    .me-card {
+    /* ===== PROFILE CARD ===== */
+    .profile-card {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      gap: 14px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
       border-radius: 20px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: var(--card);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      animation: cardSlideIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
-    .me-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+
+    @keyframes cardSlideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .me-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #00a884, #00d4aa);
+
+    .profile-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+      opacity: 0.4;
+    }
+
+    .pc-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 18px;
-      overflow: hidden;
-    }
-    .me-avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .me-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .me-name {
-      font-size: 15px;
-      font-weight: 500;
-    }
-    .me-meta {
-      font-size: 12px;
-      color: #8696a0;
-    }
-    .e2ee-pill {
-      font-size: 11px;
-      color: #00a884;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,168,132,0.6);
-      background: rgba(0,168,132,0.08);
-      text-align: center;
-    }
-
-    .search-card {
-      margin-top: 8px;
-      margin-bottom: 12px;
-      padding: 12px;
-      border-radius: 18px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      background: rgba(20,30,38,0.9);
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    .search-title {
-      font-size: 13px;
-      color: #8696a0;
-      margin-bottom: 6px;
-    }
-    .search-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .search-input {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 16px;
-      border: 1px solid transparent;
-      background: rgba(32,44,51,0.95);
-      color: #e9edef;
-      font-size: 14px;
-    }
-    .search-input::placeholder { color: #8696a0; }
-    .search-input:focus {
-      outline: none;
-      border-color: #00a884;
-      box-shadow: 0 0 0 2px rgba(0,168,132,0.35);
-    }
-    .search-btn {
-      padding: 0 10px;
-      border-radius: 16px;
-      border: none;
-      background: linear-gradient(135deg, #00a884, #00d4aa);
-      color: #fff;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .search-btn:disabled {
-      background: #404c55;
-      cursor: not-allowed;
-    }
-    .search-status {
-      font-size: 12px;
-      color: #8696a0;
-      min-height: 1.2em;
-    }
-
-    .section-title {
-      margin: 10px 2px;
-      font-size: 13px;
-      color: #8696a0;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .chat-list {
-      border-radius: 18px;
-      overflow: hidden;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      background: rgba(15, 23, 30, 0.88);
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
-    }
-    .chat-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .chat-row:last-child {
-      border-bottom: none;
-    }
-    .chat-row:hover {
-      background: rgba(255,255,255,0.04);
-    }
-    .chat-avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #00a884, #00d4aa);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 18px;
+      font-size: 20px;
+      color: var(--bg);
       overflow: hidden;
       flex-shrink: 0;
+      position: relative;
     }
-    .chat-avatar img {
+
+    .pc-avatar img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-    .chat-main {
+
+    .pc-avatar .online-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent4);
+      border: 3px solid var(--card);
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+    }
+
+    .pc-info {
       flex: 1;
       min-width: 0;
     }
-    .chat-top {
+
+    .pc-name {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      margin-bottom: 2px;
+    }
+
+    .pc-meta {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pc-pills {
       display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .pill {
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+    }
+
+    .pill.encrypted {
+      background: rgba(192, 132, 252, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(192, 132, 252, 0.2);
+    }
+
+    .pill.video {
+      background: rgba(129, 140, 248, 0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(129, 140, 248, 0.2);
+    }
+
+    /* ===== REQUEST BANNER ===== */
+    .req-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      border-radius: 16px;
+      background: rgba(251, 191, 36, 0.06);
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      animation: bannerSlide 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes bannerSlide {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .req-banner.show { display: flex; }
+
+    .req-banner-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(251, 191, 36, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .req-banner-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--warning);
+      font-weight: 500;
+    }
+
+    .req-banner-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .req-act-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .req-act-btn.accept {
+      background: linear-gradient(135deg, var(--accent4), #2dd4bf);
+      color: #042f2e;
+    }
+
+    .req-act-btn.reject {
+      background: var(--surface2);
+      color: var(--muted);
+    }
+
+    .req-act-btn:hover {
+      transform: scale(1.08);
+    }
+
+    /* ===== SEARCH / ADD FRIEND ===== */
+    .add-section {
+      margin-bottom: 16px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      animation: cardSlideIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+    }
+
+    .add-header {
+      display: flex;
+      align-items: center;
       justify-content: space-between;
+      padding: 14px 18px 0;
+    }
+
+    .add-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      display: flex;
       align-items: center;
       gap: 6px;
     }
-    .chat-name {
-      font-size: 15px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+
+    .add-title svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--muted);
     }
-    .chat-time {
-      font-size: 11px;
-      color: #8696a0;
-      white-space: nowrap;
+
+    .add-body {
+      padding: 12px 18px 16px;
     }
-    .chat-last {
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .add-input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .add-input::placeholder {
+      color: #3d3d55;
+    }
+
+    .add-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.08);
+    }
+
+    .add-btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
       font-size: 13px;
-      color: #8696a0;
-      margin-top: 2px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .add-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent2), var(--accent3));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .add-btn:hover:not(:disabled)::before { opacity: 1; }
+
+    .add-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(192, 132, 252, 0.3);
+    }
+
+    .add-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .add-btn span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .add-status {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      min-height: 1.2em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .add-status.success { color: var(--accent4); }
+    .add-status.error { color: var(--danger); }
+    .add-status.warning { color: var(--warning); }
+
+    /* ===== CHAT LIST ===== */
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 20px 4px 10px;
+      animation: cardSlideIn 0.6s ease 0.2s both;
+    }
+
+    .section-label span {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .section-label .line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+
+    .chat-list {
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      animation: cardSlideIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+    }
+
+    .chat-empty {
+      padding: 48px 24px;
+      text-align: center;
+    }
+
+    .chat-empty-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 20px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      animation: emptyFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes emptyFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .chat-empty h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .chat-empty p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .chat-loading {
+      padding: 40px;
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 12px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .chat-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(35, 35, 64, 0.5);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chat-row::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      transform: scaleY(0);
+      transition: transform 0.3s ease;
+      border-radius: 0 3px 3px 0;
+    }
+
+    .chat-row:hover::before {
+      transform: scaleY(1);
+    }
+
+    .chat-row:last-child {
+      border-bottom: none;
+    }
+
+    .chat-row:hover {
+      background: rgba(192, 132, 252, 0.03);
+    }
+
+    .chat-row:active {
+      background: rgba(192, 132, 252, 0.06);
+    }
+
+    .c-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      color: var(--bg);
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .chat-row:hover .c-avatar {
+      transform: scale(1.05);
+    }
+
+    .c-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .c-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .c-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .c-name {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .chat-right {
+    .c-time {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .c-preview {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+
+    .c-right {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 4px;
-      min-width: 40px;
+      gap: 6px;
+      flex-shrink: 0;
     }
-    .unread-badge {
-      min-width: 18px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: #25d366;
-      color: #0b141a;
+
+    .unread-count {
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
       font-size: 11px;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    .status {
-      text-align: center;
-      font-size: 13px;
-      color: #8696a0;
-      padding: 12px;
-    }
-    .status strong { color: #00a884; }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.65);
+      font-weight: 700;
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 30;
+      font-family: 'JetBrains Mono', monospace;
+      animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    .modal {
+
+    .unread-count.show {
+      display: flex;
+    }
+
+    /* ===== MODALS ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      animation: overlayIn 0.3s ease;
+    }
+
+    @keyframes overlayIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-box {
       width: 100%;
       max-width: 420px;
       max-height: 90vh;
-      overflow: hidden;
       border-radius: 24px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      background: rgba(15, 23, 30, 0.92);
-      border: 1px solid rgba(255,255,255,0.18);
-      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
-      padding: 18px 16px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      animation: modalPop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
     }
-    .modal-header {
+
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.92) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+      opacity: 0.5;
+    }
+
+    .modal-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
     }
-    .modal-title {
+
+    .modal-head h3 {
       font-size: 16px;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: -0.3px;
     }
-    .modal-close {
-      border: none;
-      background: rgba(255,255,255,0.08);
-      border-radius: 999px;
-      width: 26px;
-      height: 26px;
+
+    .modal-x {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #e9edef;
       cursor: pointer;
+      color: var(--muted);
       font-size: 16px;
+      transition: all 0.2s;
     }
 
-    .profile-body {
+    .modal-x:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .modal-content {
+      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      padding: 8px;
+      gap: 14px;
+      overflow-y: auto;
     }
-    .profile-qr {
-      margin-top: 6px;
-      padding: 10px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
+
+    /* Profile modal avatar */
+    .profile-avatar-lg {
+      width: 80px;
+      height: 80px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 30px;
+      color: var(--bg);
+      overflow: hidden;
+      position: relative;
     }
-    .profile-meta {
-      font-size: 13px;
-      color: #8696a0;
+
+    .profile-avatar-lg img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .profile-info {
       text-align: center;
     }
-    .scanner-body {
-      padding: 6px;
+
+    .profile-info .name {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
+
+    .profile-info .meta {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .qr-frame {
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    .qr-frame::after {
+      content: 'SCAN ME';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--muted);
+      background: var(--card);
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .qr-hint {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+      max-width: 280px;
+    }
+
+    .logout-btn {
+      padding: 10px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--danger);
+      background: rgba(248, 113, 113, 0.08);
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+
+    .logout-btn:hover {
+      background: rgba(248, 113, 113, 0.15);
+      transform: translateY(-1px);
+    }
+
+    /* Scanner */
+    .scanner-area {
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
     #qr-scanner {
       width: 100%;
-      max-height: 320px;
+    }
+
+    .scanner-hint {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* Friend preview modal */
+    .friend-preview-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--accent3), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 26px;
+      color: var(--bg);
+      overflow: hidden;
+    }
+
+    .friend-preview-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .friend-info {
+      text-align: center;
+    }
+
+    .friend-info .name {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .friend-info .meta {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .friend-desc {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+      max-width: 280px;
+    }
+
+    .modal-btns {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .m-btn {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .m-btn.cancel {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .m-btn.cancel:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .m-btn.confirm {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
+    }
+
+    .m-btn.confirm:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(192, 132, 252, 0.3);
+    }
+
+    .m-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .top-nav { padding: 10px 14px; }
+      .main { padding: 10px 10px 32px; }
+      .pc-pills { display: none; }
+      .profile-card { padding: 12px 14px; }
+      .add-row { flex-direction: column; }
+      .add-btn { width: 100%; }
+      .nav-btn { width: 34px; height: 34px; border-radius: 10px; }
+    }
+
+    /* ===== ANIMATIONS ===== */
+    .chat-row {
+      animation: rowIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateX(-15px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Ripple */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(192, 132, 252, 0.15);
+      transform: scale(0);
+      animation: rippleOut 0.6s ease-out;
+      pointer-events: none;
+    }
+
+    @keyframes rippleOut {
+      to { transform: scale(4); opacity: 0; }
+    }
+
+    /* Skeleton shimmer for loading */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
   </style>
 </head>
 <body>
+
+  <!-- Background effects -->
+  <div class="cyber-bg">
+    <div class="bg-glow"></div>
+    <div class="bg-glow"></div>
+    <div class="bg-glow"></div>
+    <div class="scan-line"></div>
+  </div>
+  <div class="noise"></div>
+
+  <!-- Nav -->
   <div class="top-nav">
     <div class="brand">
-      <div class="brand-logo">S</div>
+      <div class="brand-logo"><span>S</span></div>
       <div class="brand-title">
-        <span>Secure Messenger</span>
-        <span>by muhilan</span>
+        <span class="name">Secure Messenger</span>
+        <span class="sub">by muhilan</span>
       </div>
     </div>
     <div class="nav-actions">
-      <div id="requestBadge" style="
-        display:none;
-        min-width:18px;
-        padding:2px 6px;
-        border-radius:999px;
-        background:#f15c5c;
-        color:white;
-        font-size:10px;
-        font-weight:600;
-        text-align:center;
-      " title="Pending chat requests">0</div>
-      <button class="icon-btn" id="scanBtn" title="Scan QR">📷</button>
-      <button class="icon-btn" id="profileBtn" title="Profile">⚙️</button>
+      <button class="nav-btn" id="scanBtn" title="Scan QR">
+        📷
+      </button>
+      <button class="nav-btn" id="reqBtn" title="Requests">
+        🔔
+        <div class="req-badge" id="requestBadge">0</div>
+      </button>
+      <button class="nav-btn" id="profileBtn" title="Profile">
+        ⚙️
+      </button>
     </div>
   </div>
 
+  <!-- Main Content -->
   <div class="main">
-    <div class="me-card">
-      <div class="me-info">
-        <div class="me-avatar" id="meAvatar">U</div>
-        <div class="me-text">
-          <div class="me-name" id="meName">Loading...</div>
-          <div class="me-meta" id="meMeta">@username · phone</div>
+
+    <!-- Profile card -->
+    <div class="profile-card">
+      <div class="pc-avatar" id="meAvatar">
+        U
+        <div class="online-dot"></div>
+      </div>
+      <div class="pc-info">
+        <div class="pc-name" id="meName">Loading...</div>
+        <div class="pc-meta" id="meMeta">@username · phone</div>
+      </div>
+      <div class="pc-pills">
+        <div class="pill encrypted">🔒 E2EE</div>
+        <div class="pill video">📹 Video</div>
+      </div>
+    </div>
+
+    <!-- Request banner -->
+    <div class="req-banner" id="requestBar">
+      <div class="req-banner-icon">👋</div>
+      <div class="req-banner-text" id="requestBarText">New chat request received</div>
+      <div class="req-banner-actions">
+        <button class="req-act-btn reject" id="requestRejectBtn" title="Reject">✕</button>
+        <button class="req-act-btn accept" id="requestAcceptBtn" title="Accept">✓</button>
+      </div>
+    </div>
+
+    <!-- Add friend -->
+    <div class="add-section">
+      <div class="add-header">
+        <div class="add-title">
+          <svg viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          Add friend
         </div>
       </div>
-      <div class="e2ee-pill">🔒 Encrypted chats • Video call ready</div>
-    </div>
-
-    <div id="requestBar" style="
-      display:none;
-      margin:4px 2px 8px;
-      padding:8px 10px;
-      border-radius:14px;
-      background:rgba(250, 238, 190, 0.08);
-      border:1px solid rgba(250, 200, 80, 0.4);
-      color:#fdd663;
-      font-size:12px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    ">
-      <div id="requestBarText">New chat request.</div>
-      <div style="display:flex;gap:6px;">
-        <button id="requestRejectBtn" class="icon-btn" style="background:#2a3942;">✖</button>
-        <button id="requestAcceptBtn" class="icon-btn" style="background:#00a884;">✔</button>
+      <div class="add-body">
+        <div class="add-row">
+          <input id="friendQuery" class="add-input" placeholder="Username or phone number">
+          <button id="addFriendBtn" class="add-btn"><span>Send Request</span></button>
+        </div>
+        <div id="addStatus" class="add-status"></div>
       </div>
     </div>
 
-    <div class="search-card">
-      <div class="search-title">Add friend by username or mobile</div>
-      <div class="search-row">
-        <input id="friendQuery" class="search-input" placeholder="friend username or phone">
-        <button id="addFriendBtn" class="search-btn">Send request</button>
-      </div>
-      <div id="addStatus" class="search-status"></div>
+    <!-- Chat list -->
+    <div class="section-label">
+      <span>Conversations</span>
+      <div class="line"></div>
     </div>
 
-    <div class="section-title">Chats</div>
     <div class="chat-list" id="chatList">
-      <div class="status"><strong>Loading chats...</strong></div>
+      <div class="chat-loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading chats...</div>
+      </div>
     </div>
   </div>
 
-  <!-- Profile modal -->
-  <div class="modal-backdrop" id="profileModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">My Profile</div>
-        <button class="modal-close" onclick="closeProfile()">×</button>
+  <!-- Profile Modal -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>My Profile</h3>
+        <button class="modal-x" onclick="closeProfile()">✕</button>
       </div>
-      <div class="profile-body">
-        <div class="me-avatar" id="profileAvatar">U</div>
-        <div style="text-align:center;">
-          <div class="me-name" id="profileName">Name</div>
-          <div class="me-meta" id="profileMeta">@username · phone</div>
+      <div class="modal-content">
+        <div class="profile-avatar-lg" id="profileAvatar">U</div>
+        <div class="profile-info">
+          <div class="name" id="profileName">Name</div>
+          <div class="meta" id="profileMeta">@username · phone</div>
         </div>
-        <div class="profile-qr">
+        <div class="qr-frame">
           <canvas id="qrCanvas" width="160" height="160"></canvas>
         </div>
-        <div class="profile-meta">
-          Ask friends to scan this QR<br>
-          or search your username / mobile.
-        </div>
-        <button class="icon-btn" style="width:auto;padding:6px 14px;margin-top:6px;" onclick="logout()">
-          Logout
-        </button>
+        <div class="qr-hint">Share this QR code with friends to start<br>an encrypted conversation instantly.</div>
+        <button class="logout-btn" onclick="logout()">⏻ Logout</button>
       </div>
     </div>
   </div>
 
-  <!-- QR scanner modal -->
-  <div class="modal-backdrop" id="scanModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Scan friend QR</div>
-        <button class="modal-close" onclick="closeScanner()">×</button>
+  <!-- QR Scanner Modal -->
+  <div class="modal-overlay" id="scanModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Scan QR Code</h3>
+        <button class="modal-x" onclick="closeScanner()">✕</button>
       </div>
-      <div class="scanner-body">
-        <div id="qr-scanner"></div>
-        <div class="profile-meta" style="margin-top:6px;">
-          Point your camera at your friend's Secure Messenger QR.
+      <div class="modal-content">
+        <div class="scanner-area">
+          <div id="qr-scanner"></div>
         </div>
+        <div class="scanner-hint">Point your camera at a friend's<br>Secure Messenger QR code</div>
       </div>
     </div>
   </div>
 
-  <!-- Friend preview after QR scan -->
-  <div class="modal-backdrop" id="qrFriendModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Start conversation?</div>
-        <button class="modal-close" onclick="closeQrFriendModal()">×</button>
+  <!-- QR Friend Preview Modal -->
+  <div class="modal-overlay" id="qrFriendModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Start Conversation?</h3>
+        <button class="modal-x" onclick="closeQrFriendModal()">✕</button>
       </div>
-      <div class="profile-body">
-        <div class="me-avatar" id="qrFriendAvatar">F</div>
-        <div style="text-align:center;">
-          <div class="me-name" id="qrFriendName">Friend name</div>
-          <div class="me-meta" id="qrFriendMeta">@username · phone</div>
+      <div class="modal-content">
+        <div class="friend-preview-avatar" id="qrFriendAvatar">F</div>
+        <div class="friend-info">
+          <div class="name" id="qrFriendName">Friend</div>
+          <div class="meta" id="qrFriendMeta">@username · phone</div>
         </div>
-        <div class="profile-meta">
-          This person is from QR. Send them a request to start an encrypted chat.
-        </div>
-        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
-          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectQrFriend()">Cancel</button>
-          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptQrFriendBtn">Send request</button>
+        <div class="friend-desc">Send a chat request to start an end-to-end encrypted conversation.</div>
+        <div class="modal-btns">
+          <button class="m-btn cancel" onclick="rejectQrFriend()">Cancel</button>
+          <button class="m-btn confirm" id="acceptQrFriendBtn">Send Request →</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Incoming friend request -->
-  <div class="modal-backdrop" id="incomingReqModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">New chat request</div>
-        <button class="modal-close" onclick="closeIncomingReqModal()">×</button>
+  <!-- Incoming Request Modal -->
+  <div class="modal-overlay" id="incomingReqModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Chat Request</h3>
+        <button class="modal-x" onclick="closeIncomingReqModal()">✕</button>
       </div>
-      <div class="profile-body">
-        <div class="me-avatar" id="incomingReqAvatar">U</div>
-        <div style="text-align:center;">
-          <div class="me-name" id="incomingReqName">Name</div>
-          <div class="me-meta" id="incomingReqMeta">@username · phone</div>
+      <div class="modal-content">
+        <div class="friend-preview-avatar" id="incomingReqAvatar" style="background: linear-gradient(135deg, var(--accent2), var(--accent))">U</div>
+        <div class="friend-info">
+          <div class="name" id="incomingReqName">Name</div>
+          <div class="meta" id="incomingReqMeta">@username · phone</div>
         </div>
-        <div class="profile-meta">
-          wants to start an encrypted conversation with you.
-        </div>
-        <div style="display:flex; gap:8px; margin-top:10px; width:100%; max-width:260px;">
-          <button class="icon-btn" style="flex:1; background:#2a3942;" onclick="rejectIncomingReq()">Reject</button>
-          <button class="icon-btn" style="flex:1; background:#00a884;" id="acceptIncomingReqBtn">Accept</button>
+        <div class="friend-desc">Wants to start an encrypted conversation with you.</div>
+        <div class="modal-btns">
+          <button class="m-btn cancel" onclick="rejectIncomingReq()">Reject</button>
+          <button class="m-btn confirm" id="acceptIncomingReqBtn">Accept ✓</button>
         </div>
       </div>
     </div>
@@ -592,20 +1335,34 @@
     const requestBarEl = document.getElementById('requestBar');
     const requestBarTextEl = document.getElementById('requestBarText');
 
+    // Add ripple effect to chat rows
+    function addRipple(e, element) {
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      const rect = element.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      element.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    }
+
     function logout() {
       localStorage.clear();
       auth.signOut().then(() => window.location.href = 'index.html');
     }
 
     function openProfile() {
-      document.getElementById('profileModal').style.display = 'flex';
+      document.getElementById('profileModal').classList.add('open');
     }
+
     function closeProfile() {
-      document.getElementById('profileModal').style.display = 'none';
+      document.getElementById('profileModal').classList.remove('open');
     }
 
     async function openScanner() {
-      document.getElementById('scanModal').style.display = 'flex';
+      document.getElementById('scanModal').classList.add('open');
       if (qrScanner) return;
       qrScanner = new Html5Qrcode("qr-scanner");
       try {
@@ -622,7 +1379,6 @@
                 return;
               }
               const friend = { id: friendDoc.id, ...friendDoc.data() };
-
               await closeScanner();
               openQrFriendModal(friend, friendDoc.id);
             } catch (e) {
@@ -630,7 +1386,7 @@
               alert('Failed to handle QR.');
             }
           },
-          (errorMsg) => {}
+          () => {}
         );
       } catch (e) {
         console.error(e);
@@ -639,7 +1395,7 @@
     }
 
     async function closeScanner() {
-      document.getElementById('scanModal').style.display = 'none';
+      document.getElementById('scanModal').classList.remove('open');
       if (qrScanner) {
         try { await qrScanner.stop(); } catch {}
         try { await qrScanner.clear(); } catch {}
@@ -648,13 +1404,7 @@
     }
 
     function setAddStatus(msg, type) {
-      const colors = {
-        success: '#00a884',
-        error: '#ff6b6b',
-        info: '#8696a0',
-        warning: '#f4b400'
-      };
-      addStatusEl.style.color = colors[type] || '#8696a0';
+      addStatusEl.className = 'add-status ' + (type || '');
       addStatusEl.innerHTML = msg;
     }
 
@@ -664,10 +1414,8 @@
       const batch = db.batch();
       const now = firebase.firestore.FieldValue.serverTimestamp();
 
-      const myFriendRef = db.collection('users').doc(myUid)
-        .collection('friends').doc(friendId);
-      const theirFriendRef = db.collection('users').doc(friendId)
-        .collection('friends').doc(myUid);
+      const myFriendRef = db.collection('users').doc(myUid).collection('friends').doc(friendId);
+      const theirFriendRef = db.collection('users').doc(friendId).collection('friends').doc(myUid);
 
       batch.set(myFriendRef, {
         friendUid: friendId,
@@ -746,31 +1494,32 @@
 
       const initial = (name && name[0]) ? name[0].toUpperCase() : 'U';
       if (photo) {
-        meAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+        meAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar"><div class="online-dot"></div>';
         profileAvatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
       } else {
-        meAvatarEl.textContent = initial;
+        meAvatarEl.innerHTML = initial + '<div class="online-dot"></div>';
         profileAvatarEl.textContent = initial;
       }
 
-      const qrValue = JSON.stringify({
-        uid: currentUserUID,
-        username,
-        phone
-      });
+      const qrValue = JSON.stringify({ uid: currentUserUID, username, phone });
       new QRious({
         element: document.getElementById('qrCanvas'),
         value: qrValue,
         size: 160,
-        level: 'H'
+        level: 'H',
+        background: '#0e0e18',
+        foreground: '#c084fc'
       });
     }
 
     async function renderChats(snapshot) {
-      chatListEl.innerHTML = '<div class="status"><strong>Loading chats...</strong></div>';
-
       if (snapshot.empty) {
-        chatListEl.innerHTML = '<div class="status">No chats yet. Add friend above or scan QR.</div>';
+        chatListEl.innerHTML = `
+          <div class="chat-empty">
+            <div class="chat-empty-icon">💬</div>
+            <h3>No conversations yet</h3>
+            <p>Add a friend by username, phone number,<br>or scan their QR code to start chatting.</p>
+          </div>`;
         return;
       }
 
@@ -787,12 +1536,7 @@
         if (!otherDoc.exists) return;
         const other = otherDoc.data();
 
-        chatItems.push({
-          chat,
-          chatId,
-          otherId,
-          other
-        });
+        chatItems.push({ chat, chatId, otherId, other });
       }));
 
       chatItems.sort((a, b) => {
@@ -803,38 +1547,38 @@
 
       chatListEl.innerHTML = '';
 
-      chatItems.forEach(item => {
+      chatItems.forEach((item, index) => {
         const { chat, chatId, otherId, other } = item;
         const row = document.createElement('div');
         row.className = 'chat-row';
+        row.style.animationDelay = (index * 0.06) + 's';
 
         const name = other.name || other.username || other.phone || other.email || 'Chat';
         const avatarInitial = name[0] ? name[0].toUpperCase() : 'C';
         const avatarHtml = other.photo
-          ? `<img src="${other.photo}" alt="avatar">`
+          ? `<img src="${other.photo}" alt="">`
           : avatarInitial;
 
         const lastText = chat.lastMessageText || 'Say hi 👋';
         const timeStr = chat.lastMessageAt
-          ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+          ? new Date(chat.lastMessageAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           : '';
 
         row.innerHTML = `
-          <div class="chat-avatar">${avatarHtml}</div>
-          <div class="chat-main">
-            <div class="chat-top">
-              <div class="chat-name">${name}</div>
-              <div class="chat-time">${timeStr}</div>
+          <div class="c-avatar">${avatarHtml}</div>
+          <div class="c-body">
+            <div class="c-top">
+              <div class="c-name">${name}</div>
+              <div class="c-time">${timeStr}</div>
             </div>
-            <div class="chat-last">${lastText}</div>
+            <div class="c-preview">${lastText}</div>
           </div>
-          <div class="chat-right">
-            <div class="unread-badge" style="display:none;"></div>
+          <div class="c-right">
+            <div class="unread-count" id="unread-${chatId}"></div>
           </div>
         `;
 
-        const unreadBadge = row.querySelector('.unread-badge');
-
+        // Unread count
         const lastSeenTs = chat.lastSeen && chat.lastSeen[currentUserUID]
           ? chat.lastSeen[currentUserUID].toDate()
           : new Date(0);
@@ -842,29 +1586,28 @@
         db.collection('chats').doc(chatId).collection('messages')
           .where('createdAt', '>', lastSeenTs)
           .onSnapshot((msgSnap) => {
+            const badge = document.getElementById('unread-' + chatId);
+            if (!badge) return;
             const unread = msgSnap.size;
             if (unread > 0) {
-              unreadBadge.style.display = 'inline-block';
-              unreadBadge.textContent = unread > 99 ? '99+' : unread;
+              badge.classList.add('show');
+              badge.textContent = unread > 99 ? '99+' : unread;
             } else {
-              unreadBadge.style.display = 'none';
+              badge.classList.remove('show');
             }
           });
 
+        row.addEventListener('mousedown', (e) => addRipple(e, row));
+
         row.onclick = () => {
-          const friendData = {
-            id: otherId,
-            name,
-            username: other.username || '',
-            phone: other.phone || ''
-          };
-          startChat(friendData, otherId);
+          startChat({ id: otherId, name, username: other.username || '', phone: other.phone || '' }, otherId);
         };
 
         chatListEl.appendChild(row);
       });
     }
 
+    // ===== QR Friend Modal =====
     function openQrFriendModal(friend, friendId) {
       qrScannedFriend = friend;
       qrScannedFriendId = friendId;
@@ -875,30 +1618,25 @@
       const photo = friend.photo || '';
 
       const avatarEl = document.getElementById('qrFriendAvatar');
-      const nameEl = document.getElementById('qrFriendName');
-      const metaEl = document.getElementById('qrFriendMeta');
+      document.getElementById('qrFriendName').textContent = name;
+      document.getElementById('qrFriendMeta').textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
 
-      nameEl.textContent = name;
-      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
-      const initial = name[0] ? name[0].toUpperCase() : 'F';
       if (photo) {
-        avatarEl.innerHTML = '<img src="' + photo + '" alt="avatar">';
+        avatarEl.innerHTML = '<img src="' + photo + '" alt="">';
       } else {
-        avatarEl.textContent = initial;
+        avatarEl.textContent = name[0] ? name[0].toUpperCase() : 'F';
       }
 
-      document.getElementById('qrFriendModal').style.display = 'flex';
+      document.getElementById('qrFriendModal').classList.add('open');
     }
 
     function closeQrFriendModal() {
-      document.getElementById('qrFriendModal').style.display = 'none';
+      document.getElementById('qrFriendModal').classList.remove('open');
       qrScannedFriend = null;
       qrScannedFriendId = null;
     }
 
-    async function rejectQrFriend() {
-      closeQrFriendModal();
-    }
+    function rejectQrFriend() { closeQrFriendModal(); }
 
     async function acceptQrFriend() {
       if (!qrScannedFriend || !qrScannedFriendId) return;
@@ -907,37 +1645,34 @@
       try {
         await sendFriendRequestTo(qrScannedFriend, qrScannedFriendId);
         closeQrFriendModal();
-        alert('Request sent. Waiting for them to accept.');
+        setAddStatus('Request sent via QR. Waiting for acceptance.', 'success');
       } catch (e) {
-        console.error('Accept QR friend error:', e);
-        alert('Failed to send request: ' + e.message);
+        alert('Failed: ' + e.message);
         btn.disabled = false;
       }
     }
 
+    // ===== Incoming Request Modal =====
     function openIncomingReqModal(req, showModal = true) {
       incomingReq = req;
       const data = req.data();
       const name = data.fromName || data.fromUsername || data.fromPhone || 'Unknown';
-      const username = data.fromUsername || '';
-      const phone = data.fromPhone || '';
+
+      document.getElementById('incomingReqName').textContent = name;
+      document.getElementById('incomingReqMeta').textContent =
+        (data.fromUsername ? '@' + data.fromUsername : '') +
+        (data.fromPhone ? ' · ' + data.fromPhone : '');
 
       const avatarEl = document.getElementById('incomingReqAvatar');
-      const nameEl = document.getElementById('incomingReqName');
-      const metaEl = document.getElementById('incomingReqMeta');
-
-      nameEl.textContent = name;
-      metaEl.textContent = (username ? '@' + username : '') + (phone ? ' · ' + phone : '');
-      const initial = name[0] ? name[0].toUpperCase() : 'U';
-      avatarEl.textContent = initial;
+      avatarEl.textContent = name[0] ? name[0].toUpperCase() : 'U';
 
       if (showModal) {
-        document.getElementById('incomingReqModal').style.display = 'flex';
+        document.getElementById('incomingReqModal').classList.add('open');
       }
     }
 
     function closeIncomingReqModal() {
-      document.getElementById('incomingReqModal').style.display = 'none';
+      document.getElementById('incomingReqModal').classList.remove('open');
       incomingReq = null;
     }
 
@@ -948,9 +1683,7 @@
           status: 'rejected',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-      } catch (e) {
-        console.error('Reject req error:', e);
-      }
+      } catch (e) { console.error(e); }
       closeIncomingReqModal();
     }
 
@@ -969,14 +1702,11 @@
           status: 'accepted',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
         await addFriendRelation(friendInfo, otherId);
-
         closeIncomingReqModal();
         startChat(friendInfo, otherId);
       } catch (e) {
-        console.error('Accept req error:', e);
-        alert('Failed to accept request: ' + e.message);
+        alert('Failed: ' + e.message);
       }
     }
 
@@ -984,7 +1714,7 @@
       pendingReqCount = snapshot.size;
 
       if (pendingReqCount > 0) {
-        requestBadgeEl.style.display = 'inline-block';
+        requestBadgeEl.style.display = 'flex';
         requestBadgeEl.textContent = pendingReqCount > 9 ? '9+' : String(pendingReqCount);
       } else {
         requestBadgeEl.style.display = 'none';
@@ -992,8 +1722,8 @@
 
       if (pendingReqCount === 0) {
         incomingReq = null;
-        requestBarEl.style.display = 'none';
-        document.getElementById('incomingReqModal').style.display = 'none';
+        requestBarEl.classList.remove('show');
+        document.getElementById('incomingReqModal').classList.remove('open');
         return;
       }
 
@@ -1001,9 +1731,8 @@
       incomingReq = req;
       const data = req.data();
       const name = data.fromName || data.fromUsername || data.fromPhone || 'Someone';
-      requestBarTextEl.textContent = name + ' wants to start a chat.';
-
-      requestBarEl.style.display = 'flex';
+      requestBarTextEl.textContent = name + ' wants to chat with you';
+      requestBarEl.classList.add('show');
       openIncomingReqModal(req, false);
     }
 
@@ -1020,16 +1749,13 @@
       db.collection('chats')
         .where('participants', 'array-contains', currentUserUID)
         .onSnapshot(renderChats, (error) => {
-          console.error(error);
-          chatListEl.innerHTML = '<div class="status">Error loading chats.</div>';
+          chatListEl.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">⚠️</div><h3>Error loading chats</h3><p>Please refresh the page.</p></div>';
         });
 
       db.collection('friend_requests')
         .where('toUid', '==', currentUserUID)
         .where('status', '==', 'pending')
-        .onSnapshot((snapshot) => {
-          updateRequestUI(snapshot);
-        }, (error) => {
+        .onSnapshot(updateRequestUI, (error) => {
           console.error('Incoming req error:', error);
         });
     }
@@ -1037,44 +1763,57 @@
     addFriendBtn.onclick = async () => {
       const query = document.getElementById('friendQuery').value.trim();
       if (!query) {
-        setAddStatus('Enter username or mobile number.', 'warning');
+        setAddStatus('Enter a username or phone number', 'warning');
         return;
       }
       addFriendBtn.disabled = true;
-      setAddStatus('Searching...', 'info');
+      setAddStatus('Searching...', '');
       try {
         let snapshot;
         if (/^\d+$/.test(query)) {
-          snapshot = await db.collection('users')
-            .where('phone', '==', query).limit(1).get();
+          snapshot = await db.collection('users').where('phone', '==', query).limit(1).get();
         } else {
-          snapshot = await db.collection('users')
-            .where('username', '==', query.toLowerCase()).limit(1).get();
+          snapshot = await db.collection('users').where('username', '==', query.toLowerCase()).limit(1).get();
         }
         if (snapshot.empty) {
-          setAddStatus(`No user found for <strong>${query}</strong>.`, 'info');
+          setAddStatus('No user found for "' + query + '"', '');
           addFriendBtn.disabled = false;
           return;
         }
         const friendDoc = snapshot.docs[0];
         if (friendDoc.id === currentUserUID) {
-          setAddStatus('You cannot add yourself.', 'warning');
+          setAddStatus('You cannot add yourself', 'warning');
           addFriendBtn.disabled = false;
           return;
         }
         const friend = { id: friendDoc.id, ...friendDoc.data() };
         await sendFriendRequestTo(friend, friendDoc.id);
-        setAddStatus('Request sent. They need to accept.', 'success');
+        setAddStatus('✓ Request sent successfully', 'success');
       } catch (e) {
-        console.error('Add friend error:', e);
         setAddStatus('Error: ' + e.message, 'error');
       } finally {
         addFriendBtn.disabled = false;
       }
     };
 
+    // Enter key for add friend
+    document.getElementById('friendQuery').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addFriendBtn.click();
+    });
+
+    // Nav button events
     document.getElementById('profileBtn').onclick = openProfile;
     document.getElementById('scanBtn').onclick = openScanner;
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.classList.remove('open');
+          if (overlay.id === 'scanModal') closeScanner();
+        }
+      });
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       const btn1 = document.getElementById('acceptQrFriendBtn');
@@ -1087,7 +1826,12 @@
       if (barAccept) barAccept.onclick = acceptIncomingReq;
       if (barReject) barReject.onclick = rejectIncomingReq;
 
-      requestBadgeEl.onclick = () => {
+      document.getElementById('reqBtn').onclick = () => {
+        if (incomingReq) openIncomingReqModal(incomingReq, true);
+      };
+
+      requestBadgeEl.onclick = (e) => {
+        e.stopPropagation();
         if (incomingReq) openIncomingReqModal(incomingReq, true);
       };
     });
